@@ -26,22 +26,8 @@ const year = (v?: string | null) => {
   return Number.isFinite(d.getTime()) ? d.getUTCFullYear() : 'invalid';
 };
 
-// Success Page Component with Auto-redirect Timer
-function SuccessPage({ onTimeout }: { onTimeout: () => void }) {
-  const [timeLeft, setTimeLeft] = useState(10);
-
-  // tick down
-  useEffect(() => {
-    if (timeLeft <= 0) return;
-    const t = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-    return () => clearTimeout(t);
-  }, [timeLeft]);
-
-  // when finished, notify parent (separate effect)
-  useEffect(() => {
-    if (timeLeft <= 0) onTimeout();
-  }, [timeLeft, onTimeout]);
-
+// Success Page Component
+function SuccessPage({ onReset }: { onReset: () => void }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 text-white">
       <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -70,8 +56,16 @@ function SuccessPage({ onTimeout }: { onTimeout: () => void }) {
                   We'll use your WhatsApp number to send you updates about gaming loot and special offers!
                 </p>
               </div>
-              <div className="text-emerald-400 text-lg">
-                Redirecting back to form in <span className="font-bold text-2xl text-white">{timeLeft}</span> seconds...
+              <div className="space-y-4">
+                <p className="text-emerald-400 text-lg">
+                  Thank you for joining PLAY Barbados!
+                </p>
+                <Button 
+                  onClick={onReset}
+                  className="px-8 py-3 text-lg font-semibold bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white border-0 shadow-lg hover:shadow-emerald-400/25 transition-all duration-300 transform hover:scale-105"
+                >
+                  Create Another Profile
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -100,7 +94,9 @@ const formSchema = z.object({
   whatsappNumber: z.string().min(7, 'WhatsApp number must be at least 7 digits').max(15, 'WhatsApp number must be less than 15 digits').regex(/^[\d\-]+$/, 'WhatsApp number can only contain digits and dashes'),
   shopCategories: z.array(z.enum(['gift_cards', 'video_games'])).min(1, 'Please select at least one shopping category'),
   selectedGiftCards: z.array(z.string()).optional(),
-  giftCardUsernames: z.record(z.string().min(2, 'Username must be at least 2 characters').max(40, 'Username must be less than 40 characters')).optional(),
+  giftCardUsernames: z.record(
+    z.string().max(40, 'Username must be less than 40 characters').optional()
+  ).optional(),
   selectedConsoles: z.array(z.string()).optional(),
   selectedRetroConsoles: z.array(z.string()).optional(),
   guardianFullName: z.string().optional(),
@@ -116,6 +112,30 @@ const formSchema = z.object({
   message: 'Please select at least one gift card type',
   path: ['selectedGiftCards'],
 }).refine((data) => {
+  // If shopping for gift cards, validate usernames when provided (now optional)
+  if (data.shopCategories.includes('gift_cards') && data.selectedGiftCards && data.selectedGiftCards.length > 0) {
+    if (!data.giftCardUsernames) return true; // Allow if no usernames provided
+    
+    return data.selectedGiftCards.every(cardId => {
+      const username = data.giftCardUsernames![cardId];
+      
+      // If username is empty/blank, it's allowed (optional)
+      if (!username || username.trim().length === 0) return true;
+      
+      // If username is provided, validate email format for Amazon and Apple gift cards
+      if (cardId === 'amazon' || cardId === 'itunes') {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(username.trim());
+      }
+      
+      return true;
+    });
+  }
+  return true;
+}, {
+  message: 'If you provide usernames for gift cards, Amazon and Apple require valid email addresses. You can leave usernames blank.',
+  path: ['giftCardUsernames'],
+}).refine((data) => {
   // If shopping for video games, require at least one console
   if (data.shopCategories.includes('video_games')) {
     const hasMainConsoles = data.selectedConsoles && data.selectedConsoles.length > 0;
@@ -126,27 +146,6 @@ const formSchema = z.object({
 }, {
   message: 'Please select at least one gaming system',
   path: ['selectedConsoles'],
-}).refine((data) => {
-  // If shopping for gift cards, require usernames for selected cards
-  if (data.shopCategories.includes('gift_cards') && data.selectedGiftCards && data.selectedGiftCards.length > 0) {
-    if (!data.giftCardUsernames) return false;
-    return data.selectedGiftCards.every(cardId => {
-      const username = data.giftCardUsernames![cardId];
-      if (!username || username.length < 2) return false;
-      
-      // Validate email format for Amazon and Apple gift cards
-      if (cardId === 'amazon' || cardId === 'itunes') {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(username);
-      }
-      
-      return true;
-    });
-  }
-  return true;
-}, {
-  message: 'Please provide valid usernames for all selected gift cards. Amazon and Apple require valid email addresses.',
-  path: ['giftCardUsernames'],
 }).refine((data) => {
   // If customer is a minor (under 18), require guardian information
   if (data.dob) {
@@ -287,7 +286,24 @@ export function CustomerInfoForm() {
     resetComponentState();
   }, []);
 
+  const resetFormState = () => {
+    form.reset();
+    // Explicitly reset the terms acceptance
+    form.setValue('acceptedTerms', false);
+    setIsMinor(false);
+    setError(null);
+    setHasReadTerms(false);
+    setShowTerms(false);
+    setIsSubmitting(false);
+  };
 
+  const resetComponentState = () => {
+    setIsMinor(false);
+    setError(null);
+    setHasReadTerms(false);
+    setShowTerms(false);
+    setIsSubmitting(false);
+  };
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
@@ -323,8 +339,8 @@ export function CustomerInfoForm() {
         p_shop_categories: data.shopCategories,
         p_gift_cards: (data.selectedGiftCards || []).map(id => ({
           id, 
-          username: (data.giftCardUsernames?.[id] || '').trim().toLowerCase()
-        })),
+          username: (data.giftCardUsernames?.[id] || '').trim().toLowerCase() || null
+        })), // Include all selected gift cards, with null usernames for optional ones
         p_consoles: data.selectedConsoles || [],
         p_retro_consoles: data.selectedRetroConsoles || []
       });
@@ -467,28 +483,9 @@ export function CustomerInfoForm() {
     }, 100);
   };
 
-  const resetFormState = () => {
-    form.reset();
-    // Explicitly reset the terms acceptance
-    form.setValue('acceptedTerms', false);
-    setIsMinor(false);
-    setError(null);
-    setHasReadTerms(false);
-    setShowTerms(false);
-    setIsSubmitting(false);
-  };
-
-  const resetComponentState = () => {
-    setIsMinor(false);
-    setError(null);
-    setHasReadTerms(false);
-    setShowTerms(false);
-    setIsSubmitting(false);
-  };
-
   if (isSuccess) {
     return (
-      <SuccessPage onTimeout={() => {
+      <SuccessPage onReset={() => {
         setIsSuccess(false);
         resetFormState();
       }} />
@@ -914,6 +911,15 @@ export function CustomerInfoForm() {
                       <span className="text-2xl">🎁</span>
                       Select Gift Card Types
                     </h4>
+                    
+                    {/* Optional usernames notice */}
+                    <div className="bg-amber-900/30 border border-amber-400/30 rounded-lg p-3">
+                      <p className="text-amber-200 text-sm flex items-center gap-2">
+                        <span className="text-lg">ℹ️</span>
+                        <strong>Note:</strong> If you don't have your username right now, you can update it later when you're ready to purchase.
+                      </p>
+                    </div>
+                    
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {giftCardOptions.map((option) => (
                                                   <div key={option.id} className="space-y-3 p-3 border border-slate-600 rounded-lg bg-slate-700/50 hover:border-cyan-400/50 transition-all duration-200">

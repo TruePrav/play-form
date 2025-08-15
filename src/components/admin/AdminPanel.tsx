@@ -52,10 +52,17 @@ export default function AdminPanel() {
   const [filterGiftCard, setFilterGiftCard] = useState<string>('all');
   const [filterConsole, setFilterConsole] = useState<string>('all');
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [editingGiftCard, setEditingGiftCard] = useState<CustomerGiftCard | null>(null);
+  const [nullUsernamePage, setNullUsernamePage] = useState(1);
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Reset pagination when gift cards change (e.g., after updates)
+  useEffect(() => {
+    setNullUsernamePage(1);
+  }, [giftCards.length]);
 
   const fetchData = async () => {
     try {
@@ -142,9 +149,18 @@ export default function AdminPanel() {
     
     // Gift card filter - check if customer has the selected gift card
     if (filterGiftCard !== 'all') {
-      const hasGiftCard = customerGiftCards.includes(filterGiftCard);
-      matchesFilters = matchesFilters && hasGiftCard;
-      logger.debug(`Gift card filter ${filterGiftCard}: ${hasGiftCard}`);
+      if (filterGiftCard === 'null_usernames') {
+        // Special filter for NULL usernames
+        const hasNullUsernameGiftCard = giftCards
+          .filter(gc => gc.customer_id === customer.id)
+          .some(gc => !gc.username);
+        matchesFilters = matchesFilters && hasNullUsernameGiftCard;
+        logger.debug(`NULL username gift card filter: ${hasNullUsernameGiftCard}`);
+      } else {
+        const hasGiftCard = customerGiftCards.includes(filterGiftCard);
+        matchesFilters = matchesFilters && hasGiftCard;
+        logger.debug(`Gift card filter ${filterGiftCard}: ${hasGiftCard}`);
+      }
     }
     
     // Console filter - check if customer has the selected console
@@ -196,6 +212,78 @@ export default function AdminPanel() {
     } catch (error) {
       logger.error('Error updating customer:', error);
     }
+  };
+
+  const handleEditGiftCard = (giftCard: CustomerGiftCard) => {
+    setEditingGiftCard(giftCard);
+  };
+
+  const handleSaveGiftCard = async (updatedGiftCard: CustomerGiftCard) => {
+    try {
+      const { error } = await supabase
+        .from('customer_gift_cards')
+        .update({
+          username: updatedGiftCard.username
+        })
+        .eq('id', updatedGiftCard.id);
+
+      if (error) throw error;
+
+      setGiftCards(giftCards.map(gc => 
+        gc.id === updatedGiftCard.id ? updatedGiftCard : gc
+      ));
+      setEditingGiftCard(null);
+      
+      logger.info('Gift card username updated successfully:', updatedGiftCard);
+    } catch (error) {
+      logger.error('Error updating gift card username:', error);
+    }
+  };
+
+  const handleCancelGiftCardEdit = () => {
+    setEditingGiftCard(null);
+  };
+
+  const scrollToCustomerAndEditGiftCard = (giftCard: CustomerGiftCard) => {
+    // Find the customer
+    const customer = customers.find(c => c.id === giftCard.customer_id);
+    if (!customer) return;
+
+    // Set the gift card to edit mode
+    setEditingGiftCard(giftCard);
+
+    // Find the customer element in the DOM and scroll to it
+    const customerElement = document.querySelector(`[data-customer-id="${customer.id}"]`);
+    if (customerElement) {
+      customerElement.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+      });
+      
+      // Add a subtle highlight effect
+      customerElement.classList.add('ring-2', 'ring-amber-400', 'ring-opacity-50');
+      setTimeout(() => {
+        customerElement.classList.remove('ring-2', 'ring-amber-400', 'ring-opacity-50');
+      }, 2000);
+    }
+  };
+
+  const getGiftCardDisplayName = (giftCardType: string) => {
+    const giftCardNames: { [key: string]: string } = {
+      'amazon': 'Amazon',
+      'itunes': 'Apple iTunes',
+      'fortnite': 'Fortnite V-Bucks',
+      'freefire': 'FreeFire Diamonds',
+      'xbox': 'Microsoft XBOX',
+      'nintendo': 'Nintendo eShop',
+      'pubg': 'PUBG UC',
+      'playstation': 'PlayStation Network',
+      'riot': 'RIOT Points',
+      'roblox': 'Roblox',
+      'steam': 'Steam',
+      'wizard101': 'Wizard 101'
+    };
+    return giftCardNames[giftCardType] || giftCardType;
   };
 
   const exportToCSV = () => {
@@ -304,6 +392,150 @@ export default function AdminPanel() {
           </Card>
         </div>
 
+        {/* NULL Username Gift Cards Alert */}
+        {(() => {
+          const nullUsernameGiftCards = giftCards.filter(gc => !gc.username);
+          if (nullUsernameGiftCards.length === 0) return null;
+          
+          // Pagination logic
+          const itemsPerPage = 5;
+          const totalPages = Math.ceil(nullUsernameGiftCards.length / itemsPerPage);
+          const startIndex = (nullUsernamePage - 1) * itemsPerPage;
+          const endIndex = startIndex + itemsPerPage;
+          const currentPageItems = nullUsernameGiftCards.slice(startIndex, endIndex);
+          
+          // Reset to page 1 if current page is out of bounds
+          if (nullUsernamePage > totalPages && totalPages > 0) {
+            setNullUsernamePage(1);
+          }
+          
+          return (
+            <Card className="bg-amber-900/20 border-amber-400/50">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-xl text-amber-400 flex items-center gap-2">
+                      <span className="text-2xl">⚠️</span>
+                      Gift Cards Requiring Username Updates
+                    </CardTitle>
+                                         <CardDescription className="text-amber-200">
+                       {nullUsernameGiftCards.length} gift card entries have NULL usernames that need to be updated
+                       {totalPages > 1 && ` (Page ${nullUsernamePage} of ${totalPages})`}
+                       {nullUsernameGiftCards.length > 5 && ` - Showing 5 per page`}
+                     </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {totalPages > 1 && (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          onClick={() => setNullUsernamePage(Math.max(1, nullUsernamePage - 1))}
+                          disabled={nullUsernamePage === 1}
+                          size="sm"
+                          className="bg-amber-700 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          ←
+                        </Button>
+                        <span className="text-amber-200 text-sm px-2">
+                          {nullUsernamePage} / {totalPages}
+                        </span>
+                        <Button
+                          onClick={() => setNullUsernamePage(Math.min(totalPages, nullUsernamePage + 1))}
+                          disabled={nullUsernamePage === totalPages}
+                          size="sm"
+                          className="bg-amber-700 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          →
+                        </Button>
+                      </div>
+                    )}
+                    {totalPages > 1 && (
+                      <div className="text-amber-300 text-xs bg-amber-700/30 px-2 py-1 rounded">
+                        📄 {totalPages} pages
+                      </div>
+                    )}
+                    <Button
+                      onClick={fetchData}
+                      className="bg-amber-600 hover:bg-amber-500"
+                    >
+                      🔄 Refresh
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {currentPageItems.map(gc => {
+                    const customer = customers.find(c => c.id === gc.customer_id);
+                    return (
+                                             <div key={gc.id} className="flex items-center justify-between p-3 bg-amber-900/30 border border-amber-400/30 rounded-lg">
+                         <div className="flex items-center gap-4">
+                           <span className="text-amber-300 font-medium">{getGiftCardDisplayName(gc.gift_card_type)}</span>
+                           <span className="text-amber-200">
+                             Customer: {customer?.full_name || 'Unknown'} ({customer?.whatsapp_number || 'No phone'})
+                           </span>
+                         </div>
+                         <Button
+                           onClick={() => scrollToCustomerAndEditGiftCard(gc)}
+                           size="sm"
+                           className="bg-amber-600 hover:bg-amber-500"
+                         >
+                           Update Username
+                         </Button>
+                       </div>
+                    );
+                  })}
+                </div>
+                {totalPages > 1 && (
+                  <div className="mt-4 pt-3 border-t border-amber-400/30">
+                    <div className="flex items-center justify-between text-sm text-amber-200">
+                      <span>
+                        Showing {startIndex + 1}-{Math.min(endIndex, nullUsernameGiftCards.length)} of {nullUsernameGiftCards.length} entries
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          onClick={() => setNullUsernamePage(1)}
+                          disabled={nullUsernamePage === 1}
+                          size="sm"
+                          className="bg-amber-700/50 hover:bg-amber-600/50 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                        >
+                          First
+                        </Button>
+                        <Button
+                          onClick={() => setNullUsernamePage(Math.max(1, nullUsernamePage - 1))}
+                          disabled={nullUsernamePage === 1}
+                          size="sm"
+                          className="bg-amber-700/50 hover:bg-amber-600/50 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                        >
+                          Previous
+                        </Button>
+                        <span className="px-3 py-1 bg-amber-700/30 rounded">
+                          Page {nullUsernamePage} of {totalPages}
+                        </span>
+                        <Button
+                          onClick={() => setNullUsernamePage(Math.min(totalPages, nullUsernamePage + 1))}
+                          disabled={nullUsernamePage === totalPages}
+                          size="sm"
+                          className="bg-amber-700/50 hover:bg-amber-600/50 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                        >
+                          Next
+                        </Button>
+                        <Button
+                          onClick={() => setNullUsernamePage(totalPages)}
+                          disabled={nullUsernamePage === totalPages}
+                          size="sm"
+                          className="bg-amber-700/50 hover:bg-amber-600/50 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                        >
+                          Last
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })()}
+
         {/* Controls */}
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
           <div className="flex flex-wrap gap-4">
@@ -333,6 +565,7 @@ export default function AdminPanel() {
               </SelectTrigger>
               <SelectContent className="bg-slate-800 text-white border-slate-600">
                 <SelectItem value="all">All Gift Cards</SelectItem>
+                <SelectItem value="null_usernames">NULL Usernames</SelectItem>
                 <SelectItem value="amazon">Amazon</SelectItem>
                 <SelectItem value="itunes">Apple iTunes</SelectItem>
                 <SelectItem value="fortnite">Fortnite V-Bucks</SelectItem>
@@ -433,7 +666,7 @@ export default function AdminPanel() {
           <CardContent>
             <div className="space-y-4">
               {filteredCustomers.map((customer) => (
-                <div key={customer.id} className="bg-slate-700/50 rounded-lg p-4 border border-slate-600">
+                <div key={customer.id} className="bg-slate-700/50 rounded-lg p-4 border border-slate-600" data-customer-id={customer.id}>
                   {editingCustomer?.id === customer.id ? (
                     // Edit Form
                     <div className="space-y-4">
@@ -516,7 +749,19 @@ export default function AdminPanel() {
                     <div>
                       <div className="flex justify-between items-start mb-3">
                         <div>
-                          <h3 className="text-xl font-semibold text-white">{customer.full_name}</h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-xl font-semibold text-white">{customer.full_name}</h3>
+                            {(() => {
+                              const hasNullUsernameGiftCard = giftCards
+                                .filter(gc => gc.customer_id === customer.id)
+                                .some(gc => !gc.username);
+                              return hasNullUsernameGiftCard ? (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-900/50 text-amber-300 border border-amber-400/50">
+                                  ⚠️ NULL Username
+                                </span>
+                              ) : null;
+                            })()}
+                          </div>
                           <p className="text-slate-300">
                              {customer.whatsapp_country_code}{customer.whatsapp_number}
                           </p>
@@ -548,8 +793,54 @@ export default function AdminPanel() {
                           <span className="text-emerald-400 font-semibold">Gift Cards:</span>
                           <div className="text-slate-300">
                             {getCustomerGiftCards(customer.id).map(gc => (
-                              <div key={gc.id} className="text-xs">
-                                {gc.gift_card_type}: {gc.username}
+                              <div key={gc.id} className="text-xs mb-2">
+                                {editingGiftCard?.id === gc.id ? (
+                                  // Edit Mode
+                                  <div className="flex items-center gap-2 p-2 bg-amber-900/30 border border-amber-400/50 rounded">
+                                    <span className="text-amber-300 font-medium text-xs">
+                                      {getGiftCardDisplayName(gc.gift_card_type)}:
+                                    </span>
+                                    <Input
+                                      value={editingGiftCard.username || ''}
+                                      onChange={(e) => setEditingGiftCard({
+                                        ...editingGiftCard,
+                                        username: e.target.value
+                                      })}
+                                      placeholder="Enter username"
+                                      className="h-6 text-xs bg-slate-600 border-amber-400 text-white"
+                                    />
+                                    <Button
+                                      onClick={() => handleSaveGiftCard(editingGiftCard)}
+                                      size="sm"
+                                      className="h-6 px-2 text-xs bg-emerald-600 hover:bg-emerald-500"
+                                    >
+                                      ✓
+                                    </Button>
+                                    <Button
+                                      onClick={handleCancelGiftCardEdit}
+                                      size="sm"
+                                      className="h-6 px-2 text-xs bg-slate-600 hover:bg-slate-500"
+                                    >
+                                      ✗
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  // Display Mode
+                                  <div className="flex items-center gap-2">
+                                    <span>
+                                      {getGiftCardDisplayName(gc.gift_card_type)}: {gc.username || (
+                                        <span className="text-amber-400 italic">NULL username</span>
+                                      )}
+                                    </span>
+                                    <Button
+                                      onClick={() => handleEditGiftCard(gc)}
+                                      size="sm"
+                                      className="h-5 px-2 text-xs bg-blue-600 hover:bg-blue-500"
+                                    >
+                                      Edit
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
