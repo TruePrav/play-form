@@ -28,6 +28,42 @@ export default async function handler(req: Request) {
 }
 ```
 
+### 2. Next.js Middleware Security (Updated)
+
+Your middleware now uses a smarter approach to detect suspicious headers:
+
+```typescript
+// Whitelist of common legitimate headers from hosting providers
+const legitimateHeaders = [
+  'x-forwarded-host', // Common in Vercel, Netlify, etc.
+  'x-forwarded-server', // Common in load balancers
+  'x-forwarded-uri', // Common in reverse proxies
+  'x-vercel-id', // Vercel-specific
+  'cf-connecting-ip', // Cloudflare
+  // ... more legitimate headers
+]
+
+// Only block truly malicious headers
+const maliciousHeaders = [
+  'x-forwarded-proto', // Protocol downgrade attacks
+  'x-original-url', // Path traversal attacks
+  'x-rewrite-url', // Path traversal attacks
+]
+
+// Special handling for x-forwarded-for
+const forwardedFor = request.headers.get('x-forwarded-for')
+if (forwardedFor && forwardedFor.split(',').length > 5) {
+  // Block suspicious forwarding chains
+}
+```
+
+**Key Improvements:**
+- ✅ Whitelist approach for common legitimate headers
+- ✅ Reduced false positives from hosting providers
+- ✅ Still blocks truly malicious headers
+- ✅ Path traversal detection in headers
+- ✅ Header size limits to prevent bombing attacks
+
 ### 2. Supabase RLS (Row Level Security)
 
 Enable RLS on your tables and create policies:
@@ -150,7 +186,34 @@ const logSecurityEvent = (event: string, details: any) => {
 
 Track 403, 429, and other security-related responses to identify attack patterns.
 
-### 3. Regular Security Audits
+### 3. Troubleshooting "Forbidden: Suspicious headers" Error
+
+If you encounter this error, it's likely due to:
+
+1. **Legitimate headers from hosting providers** - Your middleware now whitelists common headers
+2. **Multiple suspicious headers** - Only blocks when 2+ malicious headers are detected
+3. **Path traversal attempts** - Detects `../` patterns in headers
+4. **Header bombing** - Blocks headers larger than 8KB
+
+**Debug in Development:**
+```bash
+# Run in development mode to see all headers
+npm run dev
+```
+
+**Check your logs for:**
+- `🔍 DEV: Found potentially suspicious header: [header_name]`
+- `⚠️ DEV: Suspicious x-forwarded-for chain length: [number]`
+- `🚫 DEV: Detected potential path traversal in header [header_name]`
+
+**Common legitimate headers that are now allowed:**
+- `x-forwarded-host` (Vercel, Netlify)
+- `x-forwarded-server` (Load balancers)
+- `x-forwarded-uri` (Reverse proxies)
+- `x-vercel-id` (Vercel-specific)
+- `cf-connecting-ip` (Cloudflare)
+
+### 4. Regular Security Audits
 
 - Review access logs monthly
 - Check for unusual traffic patterns
