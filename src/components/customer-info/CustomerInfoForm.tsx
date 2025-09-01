@@ -26,6 +26,26 @@ const year = (v?: string | null) => {
   return Number.isFinite(d.getTime()) ? d.getUTCFullYear() : 'invalid';
 };
 
+// Name formatting helper
+const formatFullName = (name: string): string => {
+  if (!name) return '';
+  
+  // Split by spaces and hyphens, but preserve them
+  const parts = name.split(/(\s+|-)/);
+  
+  // Capitalize each part
+  const capitalizedParts = parts.map((part) => {
+    if (part === ' ' || part === '-' || part === '') {
+      return part; // Keep spaces, hyphens, and empty strings as-is
+    }
+    
+    // Capitalize first letter, lowercase the rest
+    return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+  });
+  
+  return capitalizedParts.join('');
+};
+
 // Success Page Component
 function SuccessPage({ onReset }: { onReset: () => void }) {
   return (
@@ -81,7 +101,7 @@ const BARBADOS_TIMEZONE = 'America/Barbados';
 // Form validation schema
 const formSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters').max(80, 'Name must be less than 80 characters'),
-  email: z.string().email('Please enter a valid email address'),
+  email: z.string().email('Please enter a valid email address').optional().or(z.literal('')),
   dob: z.string().refine((date) => {
     if (!date) return false;
     const parsedDate = parseISO(date);
@@ -581,6 +601,15 @@ export function CustomerInfoForm() {
                         <Input 
                           placeholder="Your real name — no gamertag… yet" 
                           {...field}
+                          value={field.value}
+                          onChange={(e) => {
+                            const formattedValue = formatFullName(e.target.value);
+                            field.onChange(formattedValue);
+                          }}
+                          onBlur={(e) => {
+                            const formattedValue = formatFullName(e.target.value);
+                            field.onChange(formattedValue);
+                          }}
                           className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:ring-emerald-400/20 transition-all duration-200"
                         />
                       </FormControl>
@@ -788,6 +817,15 @@ export function CustomerInfoForm() {
                             <Input 
                               placeholder="Enter guardian's full name" 
                               {...field}
+                              value={field.value}
+                              onChange={(e) => {
+                                const formattedValue = formatFullName(e.target.value);
+                                field.onChange(formattedValue);
+                              }}
+                              onBlur={(e) => {
+                                const formattedValue = formatFullName(e.target.value);
+                                field.onChange(formattedValue);
+                              }}
                               className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200"
                             />
                           </FormControl>
