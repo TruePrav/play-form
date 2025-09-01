@@ -16,6 +16,7 @@ export function middleware(request: NextRequest) {
   
   // Development mode logging
   if (isDevelopment) {
+    // eslint-disable-next-line no-console
     console.log(`🔧 DEV: Processing request to ${pathname} from origin: ${origin}`)
     
     // Log all headers in development for debugging
@@ -23,6 +24,7 @@ export function middleware(request: NextRequest) {
     request.headers.forEach((value, key) => {
       allHeaders[key] = value
     })
+    // eslint-disable-next-line no-console
     console.log(`🔧 DEV: All request headers:`, allHeaders)
   }
 
@@ -31,6 +33,7 @@ export function middleware(request: NextRequest) {
     // Block requests from unauthorized origins
     if (!ALLOWED_ORIGINS.includes(origin)) {
       if (isDevelopment) {
+        // eslint-disable-next-line no-console
         console.log(`🚫 DEV: Blocked request from unauthorized origin: ${origin}`)
       }
       return new NextResponse('Forbidden: Unauthorized origin', { 
@@ -79,6 +82,7 @@ export function middleware(request: NextRequest) {
     const ips = forwardedFor.split(',').map(ip => ip.trim())
     if (ips.length > 5) { // More than 5 IPs in chain is suspicious
       if (isDevelopment) {
+        // eslint-disable-next-line no-console
         console.log(`⚠️ DEV: Suspicious x-forwarded-for chain length: ${ips.length}`)
       } else {
         return new NextResponse('Forbidden: Suspicious forwarding chain', { 
@@ -97,6 +101,7 @@ export function middleware(request: NextRequest) {
     if (request.headers.get(header)) {
       suspiciousHeaderCount++
       if (isDevelopment) {
+        // eslint-disable-next-line no-console
         console.log(`🔍 DEV: Found potentially suspicious header: ${header}`)
       }
     }
@@ -105,6 +110,7 @@ export function middleware(request: NextRequest) {
   // Only block if multiple suspicious headers are present (reduces false positives)
   if (suspiciousHeaderCount >= 2) {
     if (isDevelopment) {
+      // eslint-disable-next-line no-console
       console.log(`🚫 DEV: Blocked request with ${suspiciousHeaderCount} suspicious headers`)
     } else {
       return new NextResponse('Forbidden: Multiple suspicious headers detected', { 
@@ -122,6 +128,7 @@ export function middleware(request: NextRequest) {
     request.headers.forEach((value, key) => {
       if (value.toLowerCase().includes(pattern)) {
         if (isDevelopment) {
+          // eslint-disable-next-line no-console
           console.log(`🚫 DEV: Detected potential path traversal in header ${key}: ${value}`)
         } else {
           return new NextResponse('Forbidden: Path traversal attempt detected', { 
@@ -143,6 +150,7 @@ export function middleware(request: NextRequest) {
   
   if (totalHeaderSize > 8192) { // 8KB limit
     if (isDevelopment) {
+      // eslint-disable-next-line no-console
       console.log(`⚠️ DEV: Large headers detected: ${totalHeaderSize} bytes`)
     } else {
       return new NextResponse('Forbidden: Headers too large', { 

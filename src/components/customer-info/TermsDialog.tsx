@@ -43,7 +43,7 @@ export function TermsDialog({ open, onOpenChange, onScrollToBottom }: TermsDialo
             The Rulebook
           </DialogTitle>
           <DialogDescription className="text-slate-300">
-            Please read these terms and conditions carefully. You must scroll to the bottom to proceed.
+            Please read these terms and conditions carefully. <span className="font-bold text-base">You must scroll to the bottom to proceed.</span>
           </DialogDescription>
         </DialogHeader>
         
