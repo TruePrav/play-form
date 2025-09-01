@@ -30,11 +30,20 @@ const year = (v?: string | null) => {
 // Name formatting helper
 const formatFullName = (name: string): string => {
   if (!name) return '';
+  
+  // Split by spaces and hyphens, but preserve them
   const parts = name.split(/(\s+|-)/);
+  
+  // Capitalize each part
   const capitalizedParts = parts.map((part) => {
-    if (part === ' ' || part === '-' || part === '') return part;
+    if (part === ' ' || part === '-' || part === '') {
+      return part; // Keep spaces, hyphens, and empty strings as-is
+    }
+    
+    // Capitalize first letter, lowercase the rest
     return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
   });
+  
   return capitalizedParts.join('');
 };
 
