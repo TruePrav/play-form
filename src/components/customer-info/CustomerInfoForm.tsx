@@ -367,9 +367,17 @@ export function CustomerInfoForm() {
           if (message.includes('customers_email_unique')) {
             errorMessage =
               'An account with this email address already exists. Please use a different email or contact support if you need help.';
-          } else if (message.includes('duplicate key value violates unique constraint')) {
-            errorMessage =
-              'This information appears to already exist in our system. Please check your details or contact support for assistance.';
+                     } else if (message.includes('duplicate key value violates unique constraint')) {
+             // Extract specific field information from the error message
+             if (message.includes('whatsapp_number')) {
+               errorMessage = 'This WhatsApp number is already registered in our system. Please use a different number or contact support if you believe this is an error.';
+             } else if (message.includes('email')) {
+               errorMessage = 'This email address is already registered in our system. Please use a different email or contact support if you believe this is an error.';
+             } else if (message.includes('full_name')) {
+               errorMessage = 'A profile with this name already exists in our system. Please verify your information or contact support for assistance.';
+             } else {
+               errorMessage = 'Some of your information is already registered in our system. Please check your details or contact support for assistance.';
+             }
           } else if (message.includes('not-null constraint')) {
             errorMessage = 'Some required information is missing. Please check all required fields and try again.';
           } else if (message.includes('foreign key constraint')) {
