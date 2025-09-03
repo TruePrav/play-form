@@ -506,6 +506,36 @@ export function CustomerInfoForm() {
     return (currentPage / 4) * 100;
   };
 
+  const getPageTitle = () => {
+    switch (currentPage) {
+      case 1:
+        return "🎮 Level 1: Player Identity";
+      case 2:
+        return "🏆 Level 2: Personal Stats";
+      case 3:
+        return "⚡ Level 3: Gaming Arsenal";
+      case 4:
+        return "🎁 Final Boss: Gift Cards & Terms";
+      default:
+        return "Player Profile Setup";
+    }
+  };
+
+  const getPageDescription = () => {
+    switch (currentPage) {
+      case 1:
+        return "Let's start your gaming journey! Tell us who you are so we can customize your experience.";
+      case 2:
+        return "Almost there! Just a few more details to unlock the next level...";
+      case 3:
+        return "Time to gear up! What gaming systems are you rocking? 🚀";
+      case 4:
+        return "Last step! Pick your gift cards and accept the terms to complete your profile! 🎉";
+      default:
+        return "Tell us a bit about yourself so we can level up your shopping experience.";
+    }
+  };
+
   // Page 1: Basic Info
   const renderPage1 = () => (
     <Card className="bg-slate-800/50 border-slate-600 backdrop-blur-sm hover:border-emerald-400/50 transition-all duration-300">
@@ -1538,8 +1568,8 @@ export function CustomerInfoForm() {
             <img src="/play-black.png" alt="PLAY Logo" className="h-64 w-auto mx-auto drop-shadow-2xl" />
           </div>
 
-          <h2 className="text-3xl font-semibold text-slate-300 mb-4">Player Profile Setup</h2>
-          <p className="text-xl text-slate-400 max-w-2xl mx-auto">Tell us a bit about yourself so we can level up your shopping experience.</p>
+          <h2 className="text-3xl font-semibold text-slate-300 mb-4">{getPageTitle()}</h2>
+          <p className="text-xl text-slate-400 max-w-2xl mx-auto">{getPageDescription()}</p>
           <p className="text-lg text-slate-500 mt-2">Page {currentPage} of 4</p>
         </div>
 
