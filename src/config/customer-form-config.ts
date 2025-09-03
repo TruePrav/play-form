@@ -164,3 +164,33 @@ export const retroConsoleOptions: RetroConsoleOption[] = [
     name: 'Nintendo 3DS/DS/WII'
   }
 ];
+
+export interface ParishOption {
+  id: string;
+  name: string;
+}
+
+export interface GenderOption {
+  id: string;
+  name: string;
+}
+
+export const parishOptions: ParishOption[] = [
+  { id: 'St. Lucy', name: 'St. Lucy' },
+  { id: 'St. Peter', name: 'St. Peter' },
+  { id: 'St. Andrew', name: 'St. Andrew' },
+  { id: 'St. James', name: 'St. James' },
+  { id: 'St. Joseph', name: 'St. Joseph' },
+  { id: 'St. George', name: 'St. George' },
+  { id: 'St. Thomas', name: 'St. Thomas' },
+  { id: 'St. John', name: 'St. John' },
+  { id: 'St. Michael', name: 'St. Michael' },
+  { id: 'St. Phillip', name: 'St. Phillip' },
+  { id: 'Christ Church', name: 'Christ Church' }
+];
+
+export const genderOptions: GenderOption[] = [
+  { id: 'male', name: 'Male' },
+  { id: 'female', name: 'Female' },
+  { id: 'prefer_not_to_say', name: 'Prefer not to say' }
+];
