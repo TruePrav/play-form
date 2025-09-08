@@ -19,6 +19,15 @@ interface Customer {
   is_minor: boolean;
   guardian_full_name?: string;
   guardian_date_of_birth?: string;
+  email?: string;
+  parish?: string;
+  gender?: string;
+  phone_verified?: boolean;
+  guardian_whatsapp_number?: string;
+  source_channel?: string;
+  marketing_consent?: boolean;
+  terms_accepted?: boolean;
+  terms_accepted_at?: string;
 }
 
 interface CustomerGiftCard {
@@ -51,6 +60,9 @@ export default function AdminPanel() {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterGiftCard, setFilterGiftCard] = useState<string>('all');
   const [filterConsole, setFilterConsole] = useState<string>('all');
+  const [filterParish, setFilterParish] = useState<string>('all');
+  const [filterGender, setFilterGender] = useState<string>('all');
+  const [filterPhoneVerified, setFilterPhoneVerified] = useState<string>('all');
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [editingGiftCard, setEditingGiftCard] = useState<CustomerGiftCard | null>(null);
   const [nullUsernamePage, setNullUsernamePage] = useState(1);
@@ -111,7 +123,8 @@ export default function AdminPanel() {
                          customer.whatsapp_number.includes(searchTerm);
     
     // If no filters are applied, just return search results
-    if (filterCategory === 'all' && filterGiftCard === 'all' && filterConsole === 'all') {
+    if (filterCategory === 'all' && filterGiftCard === 'all' && filterConsole === 'all' && 
+        filterParish === 'all' && filterGender === 'all' && filterPhoneVerified === 'all') {
       return matchesSearch;
     }
     
@@ -168,6 +181,27 @@ export default function AdminPanel() {
       const hasConsole = customerConsoles.includes(filterConsole);
       matchesFilters = matchesFilters && hasConsole;
       logger.debug(`Console filter ${filterConsole}: ${hasConsole}`);
+    }
+    
+    // Parish filter
+    if (filterParish !== 'all') {
+      const matchesParish = customer.parish === filterParish;
+      matchesFilters = matchesFilters && matchesParish;
+      logger.debug(`Parish filter ${filterParish}: ${matchesParish}`);
+    }
+    
+    // Gender filter
+    if (filterGender !== 'all') {
+      const matchesGender = customer.gender === filterGender;
+      matchesFilters = matchesFilters && matchesGender;
+      logger.debug(`Gender filter ${filterGender}: ${matchesGender}`);
+    }
+    
+    // Phone verified filter
+    if (filterPhoneVerified !== 'all') {
+      const isVerified = filterPhoneVerified === 'verified' ? customer.phone_verified === true : customer.phone_verified === false;
+      matchesFilters = matchesFilters && isVerified;
+      logger.debug(`Phone verified filter ${filterPhoneVerified}: ${isVerified}`);
     }
     
     const finalResult = matchesSearch && matchesFilters;
@@ -295,10 +329,20 @@ export default function AdminPanel() {
       
       return {
         'Full Name': customer.full_name,
+        'Email': customer.email || '',
         'Date of Birth': customer.date_of_birth,
         'WhatsApp': `${customer.whatsapp_country_code}${customer.whatsapp_number}`,
+        'Parish': customer.parish || '',
+        'Gender': customer.gender || '',
+        'Phone Verified': customer.phone_verified ? 'Yes' : 'No',
         'Is Minor': customer.is_minor,
         'Guardian Name': customer.guardian_full_name || '',
+        'Guardian Date of Birth': customer.guardian_date_of_birth || '',
+        'Guardian WhatsApp': customer.guardian_whatsapp_number || '',
+        'Source Channel': customer.source_channel || '',
+        'Marketing Consent': customer.marketing_consent ? 'Yes' : 'No',
+        'Terms Accepted': customer.terms_accepted ? 'Yes' : 'No',
+        'Terms Accepted At': customer.terms_accepted_at || '',
         'Shopping Categories': categories.map(c => c.category).join(', '),
         'Gift Cards': giftCards.map(gc => `${gc.gift_card_type}: ${gc.username}`).join('; '),
         'Consoles': consoles.map(c => c.console_type).join(', '),
@@ -310,11 +354,15 @@ export default function AdminPanel() {
     
     // Create filename with filter info
     let filename = 'play-barbados-customers';
-    if (filterCategory !== 'all' || filterGiftCard !== 'all' || filterConsole !== 'all' || searchTerm) {
+    if (filterCategory !== 'all' || filterGiftCard !== 'all' || filterConsole !== 'all' || 
+        filterParish !== 'all' || filterGender !== 'all' || filterPhoneVerified !== 'all' || searchTerm) {
       filename += '-filtered';
       if (filterCategory !== 'all') filename += `-${filterCategory}`;
       if (filterGiftCard !== 'all') filename += `-${filterGiftCard}`;
       if (filterConsole !== 'all') filename += `-${filterConsole}`;
+      if (filterParish !== 'all') filename += `-${filterParish}`;
+      if (filterGender !== 'all') filename += `-${filterGender}`;
+      if (filterPhoneVerified !== 'all') filename += `-${filterPhoneVerified}`;
       if (searchTerm) filename += `-search-${searchTerm}`;
     }
     filename += '.csv';
@@ -606,6 +654,54 @@ export default function AdminPanel() {
             </Select>
           </div>
           
+          <div className="flex gap-2 flex-wrap">
+            {/* Parish Filter */}
+            <Select value={filterParish} onValueChange={setFilterParish}>
+              <SelectTrigger className="w-48 bg-slate-700 border-slate-600 text-white">
+                <SelectValue placeholder="Filter by parish" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800 text-white border-slate-600">
+                <SelectItem value="all">All Parishes</SelectItem>
+                <SelectItem value="St. Lucy">St. Lucy</SelectItem>
+                <SelectItem value="St. Peter">St. Peter</SelectItem>
+                <SelectItem value="St. Andrew">St. Andrew</SelectItem>
+                <SelectItem value="St. James">St. James</SelectItem>
+                <SelectItem value="St. Joseph">St. Joseph</SelectItem>
+                <SelectItem value="St. George">St. George</SelectItem>
+                <SelectItem value="St. Thomas">St. Thomas</SelectItem>
+                <SelectItem value="St. John">St. John</SelectItem>
+                <SelectItem value="St. Michael">St. Michael</SelectItem>
+                <SelectItem value="St. Phillip">St. Phillip</SelectItem>
+                <SelectItem value="Christ Church">Christ Church</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {/* Gender Filter */}
+            <Select value={filterGender} onValueChange={setFilterGender}>
+              <SelectTrigger className="w-48 bg-slate-700 border-slate-600 text-white">
+                <SelectValue placeholder="Filter by gender" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800 text-white border-slate-600">
+                <SelectItem value="all">All Genders</SelectItem>
+                <SelectItem value="Male">Male</SelectItem>
+                <SelectItem value="Female">Female</SelectItem>
+                <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {/* Phone Verified Filter */}
+            <Select value={filterPhoneVerified} onValueChange={setFilterPhoneVerified}>
+              <SelectTrigger className="w-48 bg-slate-700 border-slate-600 text-white">
+                <SelectValue placeholder="Filter by verification" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800 text-white border-slate-600">
+                <SelectItem value="all">All Verification Status</SelectItem>
+                <SelectItem value="verified">Phone Verified</SelectItem>
+                <SelectItem value="unverified">Not Verified</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
           <div className="flex gap-2">
             {/* Clear Filters Button */}
             <Button 
@@ -614,6 +710,9 @@ export default function AdminPanel() {
                 setFilterCategory('all');
                 setFilterGiftCard('all');
                 setFilterConsole('all');
+                setFilterParish('all');
+                setFilterGender('all');
+                setFilterPhoneVerified('all');
               }}
               className="bg-slate-600 hover:bg-slate-500"
             >
@@ -645,7 +744,11 @@ export default function AdminPanel() {
                 {filterCategory !== 'all' && `Category: ${filterCategory}`}
                 {filterGiftCard !== 'all' && ` Gift Card: ${filterGiftCard}`}
                 {filterConsole !== 'all' && ` Console: ${filterConsole}`}
-                {filterCategory === 'all' && filterGiftCard === 'all' && filterConsole === 'all' && 'None'}
+                {filterParish !== 'all' && ` Parish: ${filterParish}`}
+                {filterGender !== 'all' && ` Gender: ${filterGender}`}
+                {filterPhoneVerified !== 'all' && ` Verification: ${filterPhoneVerified}`}
+                {filterCategory === 'all' && filterGiftCard === 'all' && filterConsole === 'all' && 
+                 filterParish === 'all' && filterGender === 'all' && filterPhoneVerified === 'all' && 'None'}
               </div>
             </div>
             <div>
@@ -765,6 +868,14 @@ export default function AdminPanel() {
                           <p className="text-slate-300">
                              {customer.whatsapp_country_code}{customer.whatsapp_number}
                           </p>
+                          <div className="flex gap-4 text-sm text-slate-400">
+                            {customer.email && <span>📧 {customer.email}</span>}
+                            {customer.parish && <span>📍 {customer.parish}</span>}
+                            {customer.gender && <span>👤 {customer.gender}</span>}
+                            <span className={customer.phone_verified ? 'text-green-400' : 'text-red-400'}>
+                              {customer.phone_verified ? '✅ Verified' : '❌ Not Verified'}
+                            </span>
+                          </div>
                           <p className="text-slate-400 text-sm">
                             Created: {new Date(customer.created_at).toLocaleDateString()}
                           </p>

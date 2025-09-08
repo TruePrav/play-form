@@ -15,6 +15,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TermsDialog } from './TermsDialog';
+import { OTPVerification } from './OTPVerification';
 import { giftCardOptions, consoleOptions, retroConsoleOptions, parishOptions, genderOptions } from '@/config/customer-form-config';
 import ReactCountryFlag from 'react-country-flag';
 import { supabase } from '@/lib/supabase';
@@ -119,7 +120,7 @@ const formSchema = z
          selectedRetroConsoles: z.array(z.string()).optional(),
      guardianFullName: z.string().optional(),
      guardianDob: z.string().optional(),
-               guardianWhatsappNumber: z.string().optional(),
+     guardianWhatsappNumber: z.string().optional(),
      acceptedTerms: z.boolean().refine((val) => val === true, 'You must accept the terms and conditions'),
   })
   .refine((data) => {
@@ -235,6 +236,8 @@ export function CustomerInfoForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [hasReadTerms, setHasReadTerms] = useState(false);
+  const [showOTPVerification, setShowOTPVerification] = useState(false);
+  const [phoneNumberToVerify, setPhoneNumberToVerify] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm<FormData>({
@@ -300,6 +303,8 @@ export function CustomerInfoForm() {
     setHasReadTerms(false);
     setShowTerms(false);
     setIsSubmitting(false);
+    setShowOTPVerification(false);
+    setPhoneNumberToVerify('');
   };
 
   const resetFormStateKeepData = () => {
@@ -344,6 +349,7 @@ export function CustomerInfoForm() {
          p_guardian_date_of_birth: data.guardianDob || null,
          p_guardian_whatsapp_number: (data.guardianWhatsappNumber && data.guardianWhatsappNumber.trim()) || null,
          p_is_minor: isMinor,
+        p_phone_verified: true, // Set to true since OTP was verified
         p_terms_accepted: data.acceptedTerms,
         p_terms_accepted_at: new Date().toISOString(),
         p_shop_categories: data.purchaseGiftCards === 'yes' ? ['video_games', 'gift_cards'] : ['video_games'],
@@ -474,6 +480,15 @@ export function CustomerInfoForm() {
     const isValid = await form.trigger(fieldsToValidate);
     
     if (isValid && currentPage < 4) {
+      // If we're on page 1 and have a WhatsApp number, trigger OTP verification
+      if (currentPage === 1) {
+        const whatsappNumber = form.getValues('whatsappNumber');
+        if (whatsappNumber) {
+          setPhoneNumberToVerify(whatsappNumber);
+          setShowOTPVerification(true);
+          return; // Don't advance page yet, wait for OTP verification
+        }
+      }
       setCurrentPage(currentPage + 1);
     } else if (!isValid) {
       const errors = form.formState.errors;
@@ -485,6 +500,16 @@ export function CustomerInfoForm() {
     if (currentPage > 1) {
       setCurrentPage(currentPage - 1);
     }
+  };
+
+  const handleOTPVerified = () => {
+    setShowOTPVerification(false);
+    setCurrentPage(2); // Move to next page after verification
+  };
+
+  const handleOTPBack = () => {
+    setShowOTPVerification(false);
+    // Stay on current page
   };
 
   const getFieldsForPage = (page: number): (keyof FormData)[] => {
@@ -503,6 +528,10 @@ export function CustomerInfoForm() {
   };
 
   const getProgressPercentage = () => {
+    // If OTP verification is showing, show progress as if we're between pages
+    if (showOTPVerification) {
+      return ((currentPage + 0.5) / 4) * 100;
+    }
     return (currentPage / 4) * 100;
   };
 
@@ -524,7 +553,7 @@ export function CustomerInfoForm() {
   const getPageDescription = () => {
     switch (currentPage) {
       case 1:
-        return "Let's start your gaming journey! Tell us who you are so we can customize your experience.";
+        return "Let's start your gaming journey! Tell us who you are and we'll verify your phone number.";
       case 2:
         return "Almost there! Just a few more details to unlock the next level...";
       case 3:
@@ -538,259 +567,265 @@ export function CustomerInfoForm() {
 
   // Page 1: Basic Info
   const renderPage1 = () => (
-    <Card className="bg-slate-800/50 border-slate-600 backdrop-blur-sm hover:border-emerald-400/50 transition-all duration-300">
-      <CardHeader className="border-b border-slate-600">
-        <CardTitle className="text-2xl font-bold text-emerald-400 flex items-center gap-3">
-          <span className="text-3xl">👤</span>
-          Player Profile
-        </CardTitle>
-        <CardDescription className="text-slate-300">Basic information to unlock your gaming perks</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6 pt-6">
-        <FormField
-          control={form.control}
-          name="fullName"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-lg font-semibold text-slate-200 flex items-center gap-2">
-                <span className="text-2xl">📝</span>
-                Player Name (Legal Full Name)
-              </FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Your real name — no gamertag… yet"
-                  {...field}
-                  value={field.value}
-                  onChange={(e) => {
-                    const formattedValue = formatFullName(e.target.value);
-                    field.onChange(formattedValue);
-                  }}
-                  onBlur={(e) => {
-                    const formattedValue = formatFullName(e.target.value);
-                    field.onChange(formattedValue);
-                  }}
-                  className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:ring-emerald-400/20 transition-all duration-200"
+            <Card className="bg-slate-800/50 border-slate-600 backdrop-blur-sm hover:border-emerald-400/50 transition-all duration-300">
+              <CardHeader className="border-b border-slate-600">
+                <CardTitle className="text-2xl font-bold text-emerald-400 flex items-center gap-3">
+                  <span className="text-3xl">👤</span>
+                  Player Profile
+                </CardTitle>
+                <CardDescription className="text-slate-300">Basic information to unlock your gaming perks</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6 pt-6">
+                <FormField
+                  control={form.control}
+                  name="fullName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-lg font-semibold text-slate-200 flex items-center gap-2">
+                        <span className="text-2xl">📝</span>
+                                                 Player Name (Legal Full Name)
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Your real name — no gamertag… yet"
+                          {...field}
+                          value={field.value}
+                          onChange={(e) => {
+                            const formattedValue = formatFullName(e.target.value);
+                            field.onChange(formattedValue);
+                          }}
+                          onBlur={(e) => {
+                            const formattedValue = formatFullName(e.target.value);
+                            field.onChange(formattedValue);
+                          }}
+                          className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:ring-emerald-400/20 transition-all duration-200"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
 
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-lg font-semibold text-slate-200 flex items-center gap-2">
-                <span className="text-2xl">✉️</span>
-                Player Email (Optional)
-              </FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="your.email@example.com"
-                  {...field}
-                  className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:ring-emerald-400/20 transition-all duration-200"
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-lg font-semibold text-slate-200 flex items-center gap-2">
+                        <span className="text-2xl">✉️</span>
+                        Player Email (Optional)
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="your.email@example.com"
+                          {...field}
+                          className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:ring-emerald-400/20 transition-all duration-200"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
 
-        <FormField
-          control={form.control}
-          name="whatsappNumber"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-lg font-semibold text-slate-200 flex items-center gap-2">
-                <span className="text-2xl">📱</span>
-                Loot Drop Contact (WhatsApp Number)
-              </FormLabel>
-              <FormControl>
-                <div className="relative">
-                  {/* Visual indicator for country code selector */}
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 z-20 pointer-events-none">
-                    <div className="flex items-center gap-1 text-slate-300">
-                      {(() => {
-                        const currentCode = field.value?.startsWith('+1 (246)') ? '+1 (246)' : 
-                                          field.value?.startsWith('+1') ? '+1' :
-                                          field.value?.startsWith('+44') ? '+44' :
-                                          field.value?.startsWith('+91') ? '+91' :
-                                          field.value?.startsWith('+86') ? '+86' :
-                                          field.value?.startsWith('+81') ? '+81' :
-                                          field.value?.startsWith('+49') ? '+49' :
-                                          field.value?.startsWith('+33') ? '+33' :
-                                          field.value?.startsWith('+61') ? '+61' :
-                                          field.value?.startsWith('+55') ? '+55' :
-                                          '+1 (246)';
-                        
-                        const flagCode = currentCode === '+1 (246)' ? 'BB' :
-                                        currentCode === '+1' ? 'US' :
-                                        currentCode === '+44' ? 'GB' :
-                                        currentCode === '+91' ? 'IN' :
-                                        currentCode === '+86' ? 'CN' :
-                                        currentCode === '+81' ? 'JP' :
-                                        currentCode === '+49' ? 'DE' :
-                                        currentCode === '+33' ? 'FR' :
-                                        currentCode === '+61' ? 'AU' :
-                                        currentCode === '+55' ? 'BR' : 'BB';
-                        
-                        return (
-                          <>
-                            <ReactCountryFlag svg countryCode={flagCode} style={{ width: '1.2em', height: '1.2em' }} />
-                            <svg className="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                  
-                  <Select
-                    value={field.value?.startsWith('+1 (246)') ? '+1 (246)' : 
-                          field.value?.startsWith('+1') ? '+1' :
-                          field.value?.startsWith('+44') ? '+44' :
-                          field.value?.startsWith('+91') ? '+91' :
-                          field.value?.startsWith('+86') ? '+86' :
-                          field.value?.startsWith('+81') ? '+81' :
-                          field.value?.startsWith('+49') ? '+49' :
-                          field.value?.startsWith('+33') ? '+33' :
-                          field.value?.startsWith('+61') ? '+61' :
-                          field.value?.startsWith('+55') ? '+55' :
-                          field.value?.startsWith('+') ? 'other' : '+1 (246)'}
-                    onValueChange={(val) => {
-                      if (val === 'other') {
-                        // Keep existing number if it starts with +, otherwise clear
-                        if (!field.value?.startsWith('+')) {
-                          field.onChange('');
-                        }
-                      } else {
-                        // Extract the number part and combine with new country code
-                        const currentNumber = field.value?.replace(/^\+\d+(?:\s\(\d+\))?\s?/, '') || '';
-                        if (currentNumber) {
-                          field.onChange(val + ' ' + currentNumber);
-                        } else {
-                          // If no number yet, just set the country code
-                          field.onChange(val + ' ');
-                        }
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="absolute left-0 top-0 h-full w-[50px] bg-transparent border-0 text-transparent z-10 cursor-pointer hover:bg-slate-600/20 rounded-l-md transition-colors">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-slate-800 text-white border-slate-600">
-                      <SelectItem value="+1 (246)">
-                        <span className="inline-flex items-center gap-2">
-                          <ReactCountryFlag svg countryCode="BB" style={{ width: '1.2em', height: '1.2em' }} />
-                          +1 (246) (Barbados)
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="+1">
-                        <span className="inline-flex items-center gap-2">
-                          <ReactCountryFlag svg countryCode="US" style={{ width: '1.2em', height: '1.2em' }} />
-                          +1 (US/Canada)
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="+44">
-                        <span className="inline-flex items-center gap-2">
-                          <ReactCountryFlag svg countryCode="GB" style={{ width: '1.2em', height: '1.2em' }} />
-                          +44 (UK)
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="+91">
-                        <span className="inline-flex items-center gap-2">
-                          <ReactCountryFlag svg countryCode="IN" style={{ width: '1.2em', height: '1.2em' }} />
-                          +91 (India)
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="+86">
-                        <span className="inline-flex items-center gap-2">
-                          <ReactCountryFlag svg countryCode="CN" style={{ width: '1.2em', height: '1.2em' }} />
-                          +86 (China)
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="+81">
-                        <span className="inline-flex items-center gap-2">
-                          <ReactCountryFlag svg countryCode="JP" style={{ width: '1.2em', height: '1.2em' }} />
-                          +81 (Japan)
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="+49">
-                        <span className="inline-flex items-center gap-2">
-                          <ReactCountryFlag svg countryCode="DE" style={{ width: '1.2em', height: '1.2em' }} />
-                          +49 (Germany)
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="+33">
-                        <span className="inline-flex items-center gap-2">
-                          <ReactCountryFlag svg countryCode="FR" style={{ width: '1.2em', height: '1.2em' }} />
-                          +33 (France)
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="+61">
-                        <span className="inline-flex items-center gap-2">
-                          <ReactCountryFlag svg countryCode="AU" style={{ width: '1.2em', height: '1.2em' }} />
-                          +61 (Australia)
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="+55">
-                        <span className="inline-flex items-center gap-2">
-                          <ReactCountryFlag svg countryCode="BR" style={{ width: '1.2em', height: '1.2em' }} />
-                          +55 (Brazil)
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  
-                  <Input
-                    placeholder="Enter WhatsApp number"
-                    {...field}
-                    className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:ring-emerald-400/20 transition-all duration-200 pl-[60px]"
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      const countryCode = field.value?.startsWith('+1 (246)') ? '+1 (246)' : 
-                                         field.value?.startsWith('+1') ? '+1' :
-                                         field.value?.startsWith('+44') ? '+44' :
-                                         field.value?.startsWith('+91') ? '+91' :
-                                         field.value?.startsWith('+86') ? '+86' :
-                                         field.value?.startsWith('+81') ? '+81' :
-                                         field.value?.startsWith('+49') ? '+49' :
-                                         field.value?.startsWith('+33') ? '+33' :
-                                         field.value?.startsWith('+61') ? '+61' :
-                                         field.value?.startsWith('+55') ? '+55' :
-                                         '+1 (246)';
+                <FormField
+                  control={form.control}
+                  name="whatsappNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-lg font-semibold text-slate-200 flex items-center gap-2">
+                        <span className="text-2xl">📱</span>
+                        Loot Drop Contact (WhatsApp Number)
+                      </FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          {/* Visual indicator for country code selector */}
+                          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 z-20 pointer-events-none">
+                            <div className="flex items-center gap-1 text-slate-300">
+                              {(() => {
+                                const currentCode = field.value?.startsWith('+1 (246)') ? '+1 (246)' : 
+                                                  field.value?.startsWith('+1') ? '+1' :
+                                                  field.value?.startsWith('+44') ? '+44' :
+                                                  field.value?.startsWith('+91') ? '+91' :
+                                                  field.value?.startsWith('+86') ? '+86' :
+                                                  field.value?.startsWith('+81') ? '+81' :
+                                                  field.value?.startsWith('+49') ? '+49' :
+                                                  field.value?.startsWith('+33') ? '+33' :
+                                                  field.value?.startsWith('+61') ? '+61' :
+                                                  field.value?.startsWith('+55') ? '+55' :
+                                                  '+1 (246)';
+                                
+                                const flagCode = currentCode === '+1 (246)' ? 'BB' :
+                                                currentCode === '+1' ? 'US' :
+                                                currentCode === '+44' ? 'GB' :
+                                                currentCode === '+91' ? 'IN' :
+                                                currentCode === '+86' ? 'CN' :
+                                                currentCode === '+81' ? 'JP' :
+                                                currentCode === '+49' ? 'DE' :
+                                                currentCode === '+33' ? 'FR' :
+                                                currentCode === '+61' ? 'AU' :
+                                                currentCode === '+55' ? 'BR' : 'BB';
+                                
+                                return (
+                                  <>
+                                    <ReactCountryFlag svg countryCode={flagCode} style={{ width: '1.2em', height: '1.2em' }} />
+                                    <svg className="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          </div>
+                          
+                          <Select
+                            value={field.value?.startsWith('+1 (246)') ? '+1 (246)' : 
+                                  field.value?.startsWith('+1') ? '+1' :
+                                  field.value?.startsWith('+44') ? '+44' :
+                                  field.value?.startsWith('+91') ? '+91' :
+                                  field.value?.startsWith('+86') ? '+86' :
+                                  field.value?.startsWith('+81') ? '+81' :
+                                  field.value?.startsWith('+49') ? '+49' :
+                                  field.value?.startsWith('+33') ? '+33' :
+                                  field.value?.startsWith('+61') ? '+61' :
+                                  field.value?.startsWith('+55') ? '+55' :
+                                  field.value?.startsWith('+') ? 'other' : '+1 (246)'}
+                            onValueChange={(val) => {
+                              if (val === 'other') {
+                        // For "Other", set to just "+" to let user enter full international number
+                        field.onChange('+');
+                              } else {
+                                // Extract the number part and combine with new country code
+                                const currentNumber = field.value?.replace(/^\+\d+(?:\s\(\d+\))?\s?/, '') || '';
+                                if (currentNumber) {
+                                  field.onChange(val + ' ' + currentNumber);
+                                } else {
+                                  // If no number yet, just set the country code
+                                  field.onChange(val + ' ');
+                                }
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="absolute left-0 top-0 h-full w-[50px] bg-transparent border-0 text-transparent z-10 cursor-pointer hover:bg-slate-600/20 rounded-l-md transition-colors">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-slate-800 text-white border-slate-600">
+                              <SelectItem value="+1 (246)">
+                                <span className="inline-flex items-center gap-2">
+                                  <ReactCountryFlag svg countryCode="BB" style={{ width: '1.2em', height: '1.2em' }} />
+                                  +1 (246) (Barbados)
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="+1">
+                                <span className="inline-flex items-center gap-2">
+                                  <ReactCountryFlag svg countryCode="US" style={{ width: '1.2em', height: '1.2em' }} />
+                                  +1 (US/Canada)
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="+44">
+                                <span className="inline-flex items-center gap-2">
+                                  <ReactCountryFlag svg countryCode="GB" style={{ width: '1.2em', height: '1.2em' }} />
+                                  +44 (UK)
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="+91">
+                                <span className="inline-flex items-center gap-2">
+                                  <ReactCountryFlag svg countryCode="IN" style={{ width: '1.2em', height: '1.2em' }} />
+                                  +91 (India)
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="+86">
+                                <span className="inline-flex items-center gap-2">
+                                  <ReactCountryFlag svg countryCode="CN" style={{ width: '1.2em', height: '1.2em' }} />
+                                  +86 (China)
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="+81">
+                                <span className="inline-flex items-center gap-2">
+                                  <ReactCountryFlag svg countryCode="JP" style={{ width: '1.2em', height: '1.2em' }} />
+                                  +81 (Japan)
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="+49">
+                                <span className="inline-flex items-center gap-2">
+                                  <ReactCountryFlag svg countryCode="DE" style={{ width: '1.2em', height: '1.2em' }} />
+                                  +49 (Germany)
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="+33">
+                                <span className="inline-flex items-center gap-2">
+                                  <ReactCountryFlag svg countryCode="FR" style={{ width: '1.2em', height: '1.2em' }} />
+                                  +33 (France)
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="+61">
+                                <span className="inline-flex items-center gap-2">
+                                  <ReactCountryFlag svg countryCode="AU" style={{ width: '1.2em', height: '1.2em' }} />
+                                  +61 (Australia)
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="+55">
+                                <span className="inline-flex items-center gap-2">
+                                  <ReactCountryFlag svg countryCode="BR" style={{ width: '1.2em', height: '1.2em' }} />
+                                  +55 (Brazil)
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          
+                          <Input
+                            placeholder="Enter WhatsApp number"
+                            {...field}
+                            className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:ring-emerald-400/20 transition-all duration-200 pl-[60px]"
+                            onChange={(e) => {
+                              const value = e.target.value;
                       
-                      // Extract just the number part (remove country code)
-                      const numberPart = value.replace(/^\+\d+(?:\s\(\d+\))?\s?/, '');
-                      
-                      // Format Barbados numbers
-                      if (countryCode === '+1 (246)' && numberPart.length > 3) {
-                        const digits = numberPart.replace(/\D/g, '');
-                        if (digits.length > 3) {
-                          const formatted = digits.slice(0, 3) + '-' + digits.slice(3, 7);
-                          field.onChange(countryCode + ' ' + formatted);
-                          e.target.value = formatted;
-                        } else {
-                          field.onChange(countryCode + ' ' + digits);
-                          e.target.value = digits;
-                        }
-                      } else {
-                        field.onChange(countryCode + ' ' + numberPart);
-                        e.target.value = numberPart;
+                      // If "Other" is selected, allow free-form international number input
+                      if (field.value === '+' || (field.value && !field.value.match(/^\+\d+\s/))) {
+                        // Allow any format starting with +
+                        field.onChange(value);
+                        return;
                       }
-                    }}
-                  />
-                </div>
-              </FormControl>
-              <FormDescription className="text-slate-400">We'll use this to send you updates about your gaming loot</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+                      
+                              const countryCode = field.value?.startsWith('+1 (246)') ? '+1 (246)' : 
+                                                 field.value?.startsWith('+1') ? '+1' :
+                                                 field.value?.startsWith('+44') ? '+44' :
+                                                 field.value?.startsWith('+91') ? '+91' :
+                                                 field.value?.startsWith('+86') ? '+86' :
+                                                 field.value?.startsWith('+81') ? '+81' :
+                                                 field.value?.startsWith('+49') ? '+49' :
+                                                 field.value?.startsWith('+33') ? '+33' :
+                                                 field.value?.startsWith('+61') ? '+61' :
+                                                 field.value?.startsWith('+55') ? '+55' :
+                                                 '+1 (246)';
+                              
+                              // Extract just the number part (remove country code)
+                              const numberPart = value.replace(/^\+\d+(?:\s\(\d+\))?\s?/, '');
+                              
+                              // Format Barbados numbers
+                              if (countryCode === '+1 (246)' && numberPart.length > 3) {
+                                const digits = numberPart.replace(/\D/g, '');
+                                if (digits.length > 3) {
+                                  const formatted = digits.slice(0, 3) + '-' + digits.slice(3, 7);
+                                  field.onChange(countryCode + ' ' + formatted);
+                                  e.target.value = formatted;
+                                } else {
+                                  field.onChange(countryCode + ' ' + digits);
+                                  e.target.value = digits;
+                                }
+                              } else {
+                                field.onChange(countryCode + ' ' + numberPart);
+                                e.target.value = numberPart;
+                              }
+                            }}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormDescription className="text-slate-400">We'll use this to send you updates about your gaming loot</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
       </CardContent>
     </Card>
   );
@@ -806,28 +841,28 @@ export function CustomerInfoForm() {
         <CardDescription className="text-slate-300">Tell us more about yourself</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
-        <FormField
-          control={form.control}
-          name="dob"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-lg font-semibold text-slate-200 flex items-center gap-2">
-                <span className="text-2xl">📅</span>
-                Spawn Date (Date of Birth)
-              </FormLabel>
-              <FormControl>
-                <Input
-                  type="date"
-                  {...field}
-                  max={format(utcToZonedTime(new Date(), BARBADOS_TIMEZONE), 'yyyy-MM-dd')}
-                  className="bg-slate-700 border-slate-600 text-white focus:border-emerald-400 focus:ring-emerald-400/20 transition-all duration-200"
+                <FormField
+                  control={form.control}
+                  name="dob"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-lg font-semibold text-slate-200 flex items-center gap-2">
+                        <span className="text-2xl">📅</span>
+                        Spawn Date (Date of Birth)
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="date"
+                          {...field}
+                          max={format(utcToZonedTime(new Date(), BARBADOS_TIMEZONE), 'yyyy-MM-dd')}
+                  className="date-input bg-slate-700 border-slate-600 text-white focus:border-emerald-400 focus:ring-emerald-400/20 transition-all duration-200"
+                        />
+                      </FormControl>
+                      <FormDescription className="text-slate-400">Format: MM/DD/YYYY</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </FormControl>
-              <FormDescription className="text-slate-400">Format: MM/DD/YYYY</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
 
         <FormField
           control={form.control}
@@ -885,632 +920,638 @@ export function CustomerInfoForm() {
           )}
         />
 
-        {isMinor && (
-          <div className="space-y-4 p-6 border-2 border-amber-400/30 bg-amber-900/20 rounded-lg backdrop-blur-sm">
-            <h4 className="font-semibold text-amber-300 text-lg flex items-center gap-2">
-              <span className="text-2xl">🛡️</span>
-              Parent/Guardian Information Required
-            </h4>
+                {isMinor && (
+                  <div className="space-y-4 p-6 border-2 border-amber-400/30 bg-amber-900/20 rounded-lg backdrop-blur-sm">
+                                         <h4 className="font-semibold text-amber-300 text-lg flex items-center gap-2">
+                       <span className="text-2xl">🛡️</span>
+                       Parent/Guardian Information Required
+                     </h4>
 
-            <FormField
-              control={form.control}
-              name="guardianFullName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-slate-200">Parent/Guardian Legal Full Name</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Enter parent/guardian's legal full name"
-                      {...field}
-                      value={field.value}
-                      onChange={(e) => {
-                        const formattedValue = formatFullName(e.target.value);
-                        field.onChange(formattedValue);
-                      }}
-                      onBlur={(e) => {
-                        const formattedValue = formatFullName(e.target.value);
-                        field.onChange(formattedValue);
-                      }}
-                      className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200"
+                    <FormField
+                      control={form.control}
+                      name="guardianFullName"
+                      render={({ field }) => (
+                        <FormItem>
+                                                     <FormLabel className="text-slate-200">Parent/Guardian Legal Full Name</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Enter parent/guardian's legal full name"
+                              {...field}
+                              value={field.value}
+                              onChange={(e) => {
+                                const formattedValue = formatFullName(e.target.value);
+                                field.onChange(formattedValue);
+                              }}
+                              onBlur={(e) => {
+                                const formattedValue = formatFullName(e.target.value);
+                                field.onChange(formattedValue);
+                              }}
+                              className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
-            <FormField
-              control={form.control}
-              name="guardianDob"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-slate-200">Parent/Guardian Date of Birth</FormLabel>
-                  <FormControl>
+                    <FormField
+                      control={form.control}
+                      name="guardianDob"
+                      render={({ field }) => (
+                        <FormItem>
+                                                     <FormLabel className="text-slate-200">Parent/Guardian Date of Birth</FormLabel>
+                          <FormControl>
                     <Input
                       type="date"
                       {...field}
                       max={format(utcToZonedTime(new Date(), BARBADOS_TIMEZONE), 'yyyy-MM-dd')}
-                      className="bg-slate-700 border-slate-600 text-white focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200"
+                      className="date-input bg-slate-700 border-slate-600 text-white focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200"
                     />
-                  </FormControl>
-                  <FormDescription className="text-slate-400">Format: MM/DD/YYYY</FormDescription>
-                  {field.value && isMinor && (
-                    <div className="flex items-center gap-2 text-xs">
-                      {(() => {
-                        try {
-                          const guardianDate = parseISO(field.value);
-                          const today = utcToZonedTime(new Date(), BARBADOS_TIMEZONE);
-                          const guardianAge = differenceInYears(today, guardianDate);
-                          const isValidGuardian = guardianAge >= 18;
-                          return (
-                            <>
-                              <span className={`flex items-center gap-1 ${isValidGuardian ? 'text-emerald-400' : 'text-red-400'}`}>
-                                {isValidGuardian ? '✓' : '✗'} Parent/Guardian age: {guardianAge} years old
-                              </span>
-                              {!isValidGuardian && <span className="text-red-400">(Must be 18+ to be a legal parent/guardian)</span>}
-                            </>
-                          );
-                        } catch {
-                          return <span className="text-amber-400">Invalid date format</span>;
-                        }
-                      })()}
-                    </div>
-                  )}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                          </FormControl>
+                          <FormDescription className="text-slate-400">Format: MM/DD/YYYY</FormDescription>
+                          {field.value && isMinor && (
+                            <div className="flex items-center gap-2 text-xs">
+                              {(() => {
+                                try {
+                                  const guardianDate = parseISO(field.value);
+                                  const today = utcToZonedTime(new Date(), BARBADOS_TIMEZONE);
+                                  const guardianAge = differenceInYears(today, guardianDate);
+                                  const isValidGuardian = guardianAge >= 18;
+                                  return (
+                                    <>
+                                                                             <span className={`flex items-center gap-1 ${isValidGuardian ? 'text-emerald-400' : 'text-red-400'}`}>
+                                         {isValidGuardian ? '✓' : '✗'} Parent/Guardian age: {guardianAge} years old
+                                       </span>
+                                       {!isValidGuardian && <span className="text-red-400">(Must be 18+ to be a legal parent/guardian)</span>}
+                                    </>
+                                  );
+                                } catch {
+                                  return <span className="text-amber-400">Invalid date format</span>;
+                                }
+                              })()}
+                            </div>
+                          )}
+                                                     <FormMessage />
+                         </FormItem>
+                       )}
+                     />
 
-            <FormField
-              control={form.control}
-              name="guardianWhatsappNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-slate-200">Parent/Guardian WhatsApp Number</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      {/* Visual indicator for country code selector */}
-                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2 z-20 pointer-events-none">
-                        <div className="flex items-center gap-1 text-slate-300">
-                          {(() => {
-                            const currentCode = field.value?.startsWith('+1 (246)') ? '+1 (246)' : 
-                                              field.value?.startsWith('+1') ? '+1' :
-                                              field.value?.startsWith('+44') ? '+44' :
-                                              field.value?.startsWith('+91') ? '+91' :
-                                              field.value?.startsWith('+86') ? '+86' :
-                                              field.value?.startsWith('+81') ? '+81' :
-                                              field.value?.startsWith('+49') ? '+49' :
-                                              field.value?.startsWith('+33') ? '+33' :
-                                              field.value?.startsWith('+61') ? '+61' :
-                                              field.value?.startsWith('+55') ? '+55' :
-                                              '+1 (246)';
-                            
-                            const flagCode = currentCode === '+1 (246)' ? 'BB' :
-                                            currentCode === '+1' ? 'US' :
-                                            currentCode === '+44' ? 'GB' :
-                                            currentCode === '+91' ? 'IN' :
-                                            currentCode === '+86' ? 'CN' :
-                                            currentCode === '+81' ? 'JP' :
-                                            currentCode === '+49' ? 'DE' :
-                                            currentCode === '+33' ? 'FR' :
-                                            currentCode === '+61' ? 'AU' :
-                                            currentCode === '+55' ? 'BR' : 'BB';
-                            
-                            return (
-                              <>
-                                <ReactCountryFlag svg countryCode={flagCode} style={{ width: '1.2em', height: '1.2em' }} />
-                                <svg className="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                              </>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                      
-                      <Select
-                        value={field.value?.startsWith('+1 (246)') ? '+1 (246)' : 
-                              field.value?.startsWith('+1') ? '+1' :
-                              field.value?.startsWith('+44') ? '+44' :
-                              field.value?.startsWith('+91') ? '+91' :
-                              field.value?.startsWith('+86') ? '+86' :
-                              field.value?.startsWith('+81') ? '+81' :
-                              field.value?.startsWith('+49') ? '+49' :
-                              field.value?.startsWith('+33') ? '+33' :
-                              field.value?.startsWith('+61') ? '+61' :
-                              field.value?.startsWith('+55') ? '+55' :
-                              field.value?.startsWith('+') ? 'other' : '+1 (246)'}
-                        onValueChange={(val) => {
-                          if (val === 'other') {
-                            // Keep existing number if it starts with +, otherwise clear
-                            if (!field.value?.startsWith('+')) {
-                              field.onChange('');
-                            }
-                          } else {
-                            // Extract the number part and combine with new country code
-                            const currentNumber = field.value?.replace(/^\+\d+(?:\s\(\d+\))?\s?/, '') || '';
-                            if (currentNumber) {
-                              field.onChange(val + ' ' + currentNumber);
-                            } else {
-                              // If no number yet, just set the country code
-                              field.onChange(val + ' ');
-                            }
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="absolute left-0 top-0 h-full w-[50px] bg-transparent border-0 text-transparent z-10 cursor-pointer hover:bg-slate-600/20 rounded-l-md transition-colors">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-slate-800 text-white border-slate-600">
-                          <SelectItem value="+1 (246)">
-                            <span className="inline-flex items-center gap-2">
-                              <ReactCountryFlag svg countryCode="BB" style={{ width: '1.2em', height: '1.2em' }} />
-                              +1 (246) (Barbados)
-                            </span>
-                          </SelectItem>
-                          <SelectItem value="+1">
-                            <span className="inline-flex items-center gap-2">
-                              <ReactCountryFlag svg countryCode="US" style={{ width: '1.2em', height: '1.2em' }} />
-                              +1 (US/Canada)
-                            </span>
-                          </SelectItem>
-                          <SelectItem value="+44">
-                            <span className="inline-flex items-center gap-2">
-                              <ReactCountryFlag svg countryCode="GB" style={{ width: '1.2em', height: '1.2em' }} />
-                              +44 (UK)
-                            </span>
-                          </SelectItem>
-                          <SelectItem value="+91">
-                            <span className="inline-flex items-center gap-2">
-                              <ReactCountryFlag svg countryCode="IN" style={{ width: '1.2em', height: '1.2em' }} />
-                              +91 (India)
-                            </span>
-                          </SelectItem>
-                          <SelectItem value="+86">
-                            <span className="inline-flex items-center gap-2">
-                              <ReactCountryFlag svg countryCode="CN" style={{ width: '1.2em', height: '1.2em' }} />
-                              +86 (China)
-                            </span>
-                          </SelectItem>
-                          <SelectItem value="+81">
-                            <span className="inline-flex items-center gap-2">
-                              <ReactCountryFlag svg countryCode="JP" style={{ width: '1.2em', height: '1.2em' }} />
-                              +81 (Japan)
-                            </span>
-                          </SelectItem>
-                          <SelectItem value="+49">
-                            <span className="inline-flex items-center gap-2">
-                              <ReactCountryFlag svg countryCode="DE" style={{ width: '1.2em', height: '1.2em' }} />
-                              +49 (Germany)
-                            </span>
-                          </SelectItem>
-                          <SelectItem value="+33">
-                            <span className="inline-flex items-center gap-2">
-                              <ReactCountryFlag svg countryCode="FR" style={{ width: '1.2em', height: '1.2em' }} />
-                              +33 (France)
-                            </span>
-                          </SelectItem>
-                          <SelectItem value="+61">
-                            <span className="inline-flex items-center gap-2">
-                              <ReactCountryFlag svg countryCode="AU" style={{ width: '1.2em', height: '1.2em' }} />
-                              +61 (Australia)
-                            </span>
-                          </SelectItem>
-                          <SelectItem value="+55">
-                            <span className="inline-flex items-center gap-2">
-                              <ReactCountryFlag svg countryCode="BR" style={{ width: '1.2em', height: '1.2em' }} />
-                              +55 (Brazil)
-                            </span>
-                          </SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      
-                      <Input
-                        placeholder="Enter WhatsApp number"
-                        {...field}
-                        className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200 pl-[60px]"
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          const countryCode = field.value?.startsWith('+1 (246)') ? '+1 (246)' : 
-                                             field.value?.startsWith('+1') ? '+1' :
-                                             field.value?.startsWith('+44') ? '+44' :
-                                             field.value?.startsWith('+91') ? '+91' :
-                                             field.value?.startsWith('+86') ? '+86' :
-                                             field.value?.startsWith('+81') ? '+81' :
-                                             field.value?.startsWith('+49') ? '+49' :
-                                             field.value?.startsWith('+33') ? '+33' :
-                                             field.value?.startsWith('+61') ? '+61' :
-                                             field.value?.startsWith('+55') ? '+55' :
-                                             '+1 (246)';
+                     <FormField
+                       control={form.control}
+                       name="guardianWhatsappNumber"
+                       render={({ field }) => (
+                         <FormItem>
+                           <FormLabel className="text-slate-200">Parent/Guardian WhatsApp Number</FormLabel>
+                           <FormControl>
+                             <div className="relative">
+                               {/* Visual indicator for country code selector */}
+                               <div className="absolute left-3 top-1/2 transform -translate-y-1/2 z-20 pointer-events-none">
+                                 <div className="flex items-center gap-1 text-slate-300">
+                                   {(() => {
+                                     const currentCode = field.value?.startsWith('+1 (246)') ? '+1 (246)' : 
+                                                       field.value?.startsWith('+1') ? '+1' :
+                                                       field.value?.startsWith('+44') ? '+44' :
+                                                       field.value?.startsWith('+91') ? '+91' :
+                                                       field.value?.startsWith('+86') ? '+86' :
+                                                       field.value?.startsWith('+81') ? '+81' :
+                                                       field.value?.startsWith('+49') ? '+49' :
+                                                       field.value?.startsWith('+33') ? '+33' :
+                                                       field.value?.startsWith('+61') ? '+61' :
+                                                       field.value?.startsWith('+55') ? '+55' :
+                                                       '+1 (246)';
+                                     
+                                     const flagCode = currentCode === '+1 (246)' ? 'BB' :
+                                                     currentCode === '+1' ? 'US' :
+                                                     currentCode === '+44' ? 'GB' :
+                                                     currentCode === '+91' ? 'IN' :
+                                                     currentCode === '+86' ? 'CN' :
+                                                     currentCode === '+81' ? 'JP' :
+                                                     currentCode === '+49' ? 'DE' :
+                                                     currentCode === '+33' ? 'FR' :
+                                                     currentCode === '+61' ? 'AU' :
+                                                     currentCode === '+55' ? 'BR' : 'BB';
+                                     
+                                     return (
+                                       <>
+                                         <ReactCountryFlag svg countryCode={flagCode} style={{ width: '1.2em', height: '1.2em' }} />
+                                         <svg className="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                         </svg>
+                                       </>
+                                     );
+                                   })()}
+                                 </div>
+                               </div>
+                               
+                               <Select
+                                 value={field.value?.startsWith('+1 (246)') ? '+1 (246)' : 
+                                       field.value?.startsWith('+1') ? '+1' :
+                                       field.value?.startsWith('+44') ? '+44' :
+                                       field.value?.startsWith('+91') ? '+91' :
+                                       field.value?.startsWith('+86') ? '+86' :
+                                       field.value?.startsWith('+81') ? '+81' :
+                                       field.value?.startsWith('+49') ? '+49' :
+                                       field.value?.startsWith('+33') ? '+33' :
+                                       field.value?.startsWith('+61') ? '+61' :
+                                       field.value?.startsWith('+55') ? '+55' :
+                                       field.value?.startsWith('+') ? 'other' : '+1 (246)'}
+                                 onValueChange={(val) => {
+                                   if (val === 'other') {
+                            // For "Other", set to just "+" to let user enter full international number
+                            field.onChange('+');
+                                   } else {
+                                     // Extract the number part and combine with new country code
+                                     const currentNumber = field.value?.replace(/^\+\d+(?:\s\(\d+\))?\s?/, '') || '';
+                                     if (currentNumber) {
+                                       field.onChange(val + ' ' + currentNumber);
+                                     } else {
+                                       // If no number yet, just set the country code
+                                       field.onChange(val + ' ');
+                                     }
+                                   }
+                                 }}
+                               >
+                                 <SelectTrigger className="absolute left-0 top-0 h-full w-[50px] bg-transparent border-0 text-transparent z-10 cursor-pointer hover:bg-slate-600/20 rounded-l-md transition-colors">
+                                   <SelectValue />
+                                 </SelectTrigger>
+                                 <SelectContent className="bg-slate-800 text-white border-slate-600">
+                                   <SelectItem value="+1 (246)">
+                                     <span className="inline-flex items-center gap-2">
+                                       <ReactCountryFlag svg countryCode="BB" style={{ width: '1.2em', height: '1.2em' }} />
+                                       +1 (246) (Barbados)
+                                     </span>
+                                   </SelectItem>
+                                   <SelectItem value="+1">
+                                     <span className="inline-flex items-center gap-2">
+                                       <ReactCountryFlag svg countryCode="US" style={{ width: '1.2em', height: '1.2em' }} />
+                                       +1 (US/Canada)
+                                     </span>
+                                   </SelectItem>
+                                   <SelectItem value="+44">
+                                     <span className="inline-flex items-center gap-2">
+                                       <ReactCountryFlag svg countryCode="GB" style={{ width: '1.2em', height: '1.2em' }} />
+                                       +44 (UK)
+                                     </span>
+                                   </SelectItem>
+                                   <SelectItem value="+91">
+                                     <span className="inline-flex items-center gap-2">
+                                       <ReactCountryFlag svg countryCode="IN" style={{ width: '1.2em', height: '1.2em' }} />
+                                       +91 (India)
+                                     </span>
+                                   </SelectItem>
+                                   <SelectItem value="+86">
+                                     <span className="inline-flex items-center gap-2">
+                                       <ReactCountryFlag svg countryCode="CN" style={{ width: '1.2em', height: '1.2em' }} />
+                                       +86 (China)
+                                     </span>
+                                   </SelectItem>
+                                   <SelectItem value="+81">
+                                     <span className="inline-flex items-center gap-2">
+                                       <ReactCountryFlag svg countryCode="JP" style={{ width: '1.2em', height: '1.2em' }} />
+                                       +81 (Japan)
+                                     </span>
+                                   </SelectItem>
+                                   <SelectItem value="+49">
+                                     <span className="inline-flex items-center gap-2">
+                                       <ReactCountryFlag svg countryCode="DE" style={{ width: '1.2em', height: '1.2em' }} />
+                                       +49 (Germany)
+                                     </span>
+                                   </SelectItem>
+                                   <SelectItem value="+33">
+                                     <span className="inline-flex items-center gap-2">
+                                       <ReactCountryFlag svg countryCode="FR" style={{ width: '1.2em', height: '1.2em' }} />
+                                       +33 (France)
+                                     </span>
+                                   </SelectItem>
+                                   <SelectItem value="+61">
+                                     <span className="inline-flex items-center gap-2">
+                                       <ReactCountryFlag svg countryCode="AU" style={{ width: '1.2em', height: '1.2em' }} />
+                                       +61 (Australia)
+                                     </span>
+                                   </SelectItem>
+                                   <SelectItem value="+55">
+                                     <span className="inline-flex items-center gap-2">
+                                       <ReactCountryFlag svg countryCode="BR" style={{ width: '1.2em', height: '1.2em' }} />
+                                       +55 (Brazil)
+                                     </span>
+                                   </SelectItem>
+                                   <SelectItem value="other">Other</SelectItem>
+                                 </SelectContent>
+                               </Select>
+                               
+                               <Input
+                                 placeholder="Enter WhatsApp number"
+                                 {...field}
+                                 className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200 pl-[60px]"
+                                 onChange={(e) => {
+                                   const value = e.target.value;
                           
-                          // Extract just the number part (remove country code)
-                          const numberPart = value.replace(/^\+\d+(?:\s\(\d+\))?\s?/, '');
-                          
-                          // Format Barbados numbers
-                          if (countryCode === '+1 (246)' && numberPart.length > 3) {
-                            const digits = numberPart.replace(/\D/g, '');
-                            if (digits.length > 3) {
-                              const formatted = digits.slice(0, 3) + '-' + digits.slice(3, 7);
-                              field.onChange(countryCode + ' ' + formatted);
-                              e.target.value = formatted;
-                            } else {
-                              field.onChange(countryCode + ' ' + digits);
-                              e.target.value = digits;
-                            }
-                          } else {
-                            field.onChange(countryCode + ' ' + numberPart);
-                            e.target.value = numberPart;
+                          // If "Other" is selected, allow free-form international number input
+                          if (field.value === '+' || (field.value && !field.value.match(/^\+\d+\s/))) {
+                            // Allow any format starting with +
+                            field.onChange(value);
+                            return;
                           }
-                        }}
-                      />
-                    </div>
-                  </FormControl>
-                  <FormDescription className="text-slate-400">We'll use this to contact the parent/guardian if needed</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                          
+                                   const countryCode = field.value?.startsWith('+1 (246)') ? '+1 (246)' : 
+                                                      field.value?.startsWith('+1') ? '+1' :
+                                                      field.value?.startsWith('+44') ? '+44' :
+                                                      field.value?.startsWith('+91') ? '+91' :
+                                                      field.value?.startsWith('+86') ? '+86' :
+                                                      field.value?.startsWith('+81') ? '+81' :
+                                                      field.value?.startsWith('+49') ? '+49' :
+                                                      field.value?.startsWith('+33') ? '+33' :
+                                                      field.value?.startsWith('+61') ? '+61' :
+                                                      field.value?.startsWith('+55') ? '+55' :
+                                                      '+1 (246)';
+                                   
+                                   // Extract just the number part (remove country code)
+                                   const numberPart = value.replace(/^\+\d+(?:\s\(\d+\))?\s?/, '');
+                                   
+                                   // Format Barbados numbers
+                                   if (countryCode === '+1 (246)' && numberPart.length > 3) {
+                                     const digits = numberPart.replace(/\D/g, '');
+                                     if (digits.length > 3) {
+                                       const formatted = digits.slice(0, 3) + '-' + digits.slice(3, 7);
+                                       field.onChange(countryCode + ' ' + formatted);
+                                       e.target.value = formatted;
+                                     } else {
+                                       field.onChange(countryCode + ' ' + digits);
+                                       e.target.value = digits;
+                                     }
+                                   } else {
+                                     field.onChange(countryCode + ' ' + numberPart);
+                                     e.target.value = numberPart;
+                                   }
+                                 }}
+                               />
+                             </div>
+                           </FormControl>
+                           <FormDescription className="text-slate-400">We'll use this to contact the parent/guardian if needed</FormDescription>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
+                   </div>
+                 )}
+              </CardContent>
+            </Card>
   );
 
   // Page 3: Video Games (auto-selected)
   const renderPage3 = () => (
-    <Card className="bg-slate-800/50 border-slate-600 backdrop-blur-sm hover:border-cyan-400/50 transition-all duration-300">
-      <CardHeader className="border-b border-slate-600">
-        <CardTitle className="text-2xl font-bold text-cyan-400 flex items-center gap-3">
-          <span className="text-3xl">🎮</span>
-          Gaming Systems
-        </CardTitle>
-        <CardDescription className="text-slate-300">Select the gaming systems you own or play on.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6 pt-6">
-        {/* Video Games is automatically selected and cannot be unchecked */}
-        <div className="p-4 border border-emerald-400/50 bg-emerald-900/20 rounded-lg">
-          <div className="flex items-center space-x-3">
-            <Checkbox
-              id="video_games"
-              checked={true}
-              disabled={true}
-              className="border-emerald-500 data-[state=checked]:bg-emerald-400 data-[state=checked]:border-emerald-400"
-            />
-            <label htmlFor="video_games" className="text-lg font-medium text-emerald-300 cursor-default flex items-center gap-2">
-              <span className="text-2xl">🎮</span>
-              Video Games
-            </label>
-          </div>
-        </div>
-
-        {/* Gaming Systems Selection */}
-        <div className="space-y-4 p-4 border border-cyan-400/30 bg-cyan-900/20 rounded-lg">
-          <h4 className="font-semibold text-cyan-300 text-lg flex items-center gap-2">
-            <span className="text-2xl">🎮</span>
-            Select Gaming Systems You Own/Play
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {consoleOptions.map((option) => (
-              <div
-                key={option.id}
-                className="flex items-center space-x-2 p-3 border border-slate-600 rounded-lg bg-slate-700/50 hover:border-cyan-400/50 transition-all duration-200"
-              >
-                <Checkbox
-                  id={option.id}
-                  checked={form.watch('selectedConsoles')?.includes(option.id) || false}
-                  onCheckedChange={(checked) => {
-                    const current = form.getValues('selectedConsoles') || [];
-                    if (checked) {
-                      form.setValue('selectedConsoles', [...current, option.id]);
-                    } else {
-                      form.setValue('selectedConsoles', current.filter((id) => id !== option.id));
-                    }
-                  }}
-                  className="border-slate-500 data-[state=checked]:bg-cyan-400 data-[state=checked]:border-cyan-400"
-                />
-                <label htmlFor={option.id} className="text-slate-200 font-medium cursor-pointer">
-                  {option.name}
-                </label>
-              </div>
-            ))}
-            
-            {/* Additional Gaming Options */}
-            <div className="flex items-center space-x-2 p-3 border border-slate-600 rounded-lg bg-slate-700/50 hover:border-cyan-400/50 transition-all duration-200">
-              <Checkbox
-                id="mobile"
-                checked={form.watch('selectedConsoles')?.includes('mobile') || false}
-                onCheckedChange={(checked) => {
-                  const current = form.getValues('selectedConsoles') || [];
-                  if (checked) {
-                    form.setValue('selectedConsoles', [...current, 'mobile']);
-                  } else {
-                    form.setValue('selectedConsoles', current.filter((id) => id !== 'mobile'));
-                  }
-                }}
-                className="border-slate-500 data-[state=checked]:bg-cyan-400 data-[state=checked]:border-cyan-400"
-              />
-              <label htmlFor="mobile" className="text-slate-200 font-medium cursor-pointer">
-                Mobile
-              </label>
-            </div>
-            
-            <div className="flex items-center space-x-2 p-3 border border-slate-600 rounded-lg bg-slate-700/50 hover:border-cyan-400/50 transition-all duration-200">
-              <Checkbox
-                id="none"
-                checked={form.watch('selectedConsoles')?.includes('none') || false}
-                onCheckedChange={(checked) => {
-                  const current = form.getValues('selectedConsoles') || [];
-                  if (checked) {
-                    form.setValue('selectedConsoles', [...current, 'none']);
-                  } else {
-                    form.setValue('selectedConsoles', current.filter((id) => id !== 'none'));
-                  }
-                }}
-                className="border-slate-500 data-[state=checked]:bg-cyan-400 data-[state=checked]:border-cyan-400"
-              />
-              <label htmlFor="none" className="text-slate-200 font-medium cursor-pointer">
-                None
-              </label>
-            </div>
-          </div>
-
-          {/* Retro Console Options */}
-          {form.watch('selectedConsoles')?.includes('retro') && (
-            <div className="mt-6 p-4 border border-amber-400/30 bg-amber-900/20 rounded-lg">
-              <h5 className="font-semibold text-amber-300 text-lg flex items-center gap-2 mb-4">
-                <span className="text-2xl">🕹️</span>
-                Select Retro Gaming Systems
-              </h5>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {retroConsoleOptions.map((option) => (
-                  <div
-                    key={option.id}
-                    className="flex items-center space-x-2 p-3 border border-slate-600 rounded-lg bg-slate-700/50 hover:border-amber-400/50 transition-all duration-200"
-                  >
+            <Card className="bg-slate-800/50 border-slate-600 backdrop-blur-sm hover:border-cyan-400/50 transition-all duration-300">
+              <CardHeader className="border-b border-slate-600">
+                <CardTitle className="text-2xl font-bold text-cyan-400 flex items-center gap-3">
+                  <span className="text-3xl">🎮</span>
+                  Gaming Systems
+                </CardTitle>
+                <CardDescription className="text-slate-300">Select the gaming systems you own or play on.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6 pt-6">
+                {/* Video Games is automatically selected and cannot be unchecked */}
+                <div className="p-4 border border-emerald-400/50 bg-emerald-900/20 rounded-lg">
+                  <div className="flex items-center space-x-3">
                     <Checkbox
-                      id={`retro-${option.id}`}
-                      checked={form.watch('selectedRetroConsoles')?.includes(option.id) || false}
-                      onCheckedChange={(checked) => {
-                        const current = form.getValues('selectedRetroConsoles') || [];
-                        if (checked) {
-                          form.setValue('selectedRetroConsoles', [...current, option.id]);
-                        } else {
-                          form.setValue('selectedRetroConsoles', current.filter((id) => id !== option.id));
-                        }
-                      }}
-                      className="border-slate-500 data-[state=checked]:bg-amber-400 data-[state=checked]:border-amber-400"
+                      id="video_games"
+                      checked={true}
+                      disabled={true}
+                      className="border-emerald-500 data-[state=checked]:bg-emerald-400 data-[state=checked]:border-emerald-400"
                     />
-                    <label htmlFor={`retro-${option.id}`} className="text-slate-200 font-medium cursor-pointer">
-                      {option.name}
+                    <label htmlFor="video_games" className="text-lg font-medium text-emerald-300 cursor-default flex items-center gap-2">
+                      <span className="text-2xl">🎮</span>
+                      Video Games
                     </label>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Helper when none selected */}
-          {(() => {
-            const selectedConsoles = form.watch('selectedConsoles') || [];
-            const selectedRetroConsoles = form.watch('selectedRetroConsoles') || [];
-            return selectedConsoles.length === 0 && selectedRetroConsoles.length === 0;
-          })() && (
-            <div className="text-amber-400 text-sm flex items-center gap-2">
-              <span>⚠️</span>
-              Please select at least one gaming system above
-            </div>
-          )}
-
-          <FormMessage />
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  // Page 4: Digital Gift Cards, Terms, Submit
-  const renderPage4 = () => (
-    <>
-      {/* Gift Cards Section */}
-      <Card className="bg-slate-800/50 border-slate-600 backdrop-blur-sm hover:border-cyan-400/50 transition-all duration-300">
-        <CardHeader className="border-b border-slate-600">
-          <CardTitle className="text-2xl font-bold text-cyan-400 flex items-center gap-3">
-            <span className="text-3xl">🎁</span>
-            Digital Gift Cards
-          </CardTitle>
-          <CardDescription className="text-slate-300">Do you purchase digital gift cards or plan to in the future?</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6 pt-6">
-          <h4 className="font-semibold text-cyan-300 text-lg flex items-center gap-2">
-            <span className="text-2xl">🎁</span>
-            Do you purchase Digital Gift Cards or plan to in the future?
-          </h4>
-
-          <FormField
-            control={form.control}
-            name="purchaseGiftCards"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex items-center space-x-3 p-4 border border-slate-600 rounded-lg hover:border-cyan-400/50 transition-all duration-200 bg-slate-700/50">
-                      <Checkbox
-                        id="gift_cards_yes"
-                        checked={field.value === 'yes'}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            field.onChange('yes');
-                          } else {
-                            field.onChange(undefined);
-                          }
-                        }}
-                        className="border-slate-500 data-[state=checked]:bg-cyan-400 data-[state=checked]:border-cyan-400"
-                      />
-                      <label
-                        htmlFor="gift_cards_yes"
-                        className="text-lg font-medium text-slate-200 cursor-pointer flex items-center gap-2"
-                      >
-                        <span className="text-2xl">✅</span>
-                        Yes
-                      </label>
-                    </div>
-                    <div className="flex items-center space-x-3 p-4 border border-slate-600 rounded-lg hover:border-cyan-400/50 transition-all duration-200 bg-slate-700/50">
-                      <Checkbox
-                        id="gift_cards_no"
-                        checked={field.value === 'no'}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            field.onChange('no');
-                          } else {
-                            field.onChange(undefined);
-                          }
-                        }}
-                        className="border-slate-500 data-[state=checked]:bg-cyan-400 data-[state=checked]:border-cyan-400"
-                      />
-                      <label
-                        htmlFor="gift_cards_no"
-                        className="text-lg font-medium text-slate-200 cursor-pointer flex items-center gap-2"
-                      >
-                        <span className="text-2xl">❌</span>
-                        No
-                      </label>
-                    </div>
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {form.watch('purchaseGiftCards') === 'yes' && (
-            <>
-              {/* Gift card selection UI */}
-              <div className="space-y-4 p-4 border border-cyan-400/30 bg-cyan-900/20 rounded-lg">
-                <h4 className="font-semibold text-cyan-300 text-lg flex items-center gap-2">
-                  <span className="text-2xl">🎁</span>
-                  Select Gift Card Types
-                </h4>
-
-                <div className="bg-amber-900/30 border border-amber-400/30 rounded-lg p-3">
-                  <p className="text-amber-200 text-sm flex items-center gap-2">
-                    <span className="text-lg">ℹ️</span>
-                    <strong>Note:</strong> If you don't have your username right now, you can update it later when you're ready to purchase.
-                  </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {giftCardOptions.map((option) => (
-                    <div
-                      key={option.id}
-                      className="space-y-3 p-3 border border-slate-600 rounded-lg bg-slate-700/50 hover:border-cyan-400/50 transition-all duration-200"
-                    >
-                      <div className="flex items-center space-x-2">
+                {/* Gaming Systems Selection */}
+                <div className="space-y-4 p-4 border border-cyan-400/30 bg-cyan-900/20 rounded-lg">
+                  <h4 className="font-semibold text-cyan-300 text-lg flex items-center gap-2">
+                    <span className="text-2xl">🎮</span>
+                    Select Gaming Systems You Own/Play
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {consoleOptions.map((option) => (
+                      <div
+                        key={option.id}
+                        className="flex items-center space-x-2 p-3 border border-slate-600 rounded-lg bg-slate-700/50 hover:border-cyan-400/50 transition-all duration-200"
+                      >
                         <Checkbox
                           id={option.id}
-                          checked={watchSelectedGiftCards.includes(option.id)}
-                          onCheckedChange={(checked) => handleGiftCardChange(option.id, checked as boolean)}
+                          checked={form.watch('selectedConsoles')?.includes(option.id) || false}
+                          onCheckedChange={(checked) => {
+                            const current = form.getValues('selectedConsoles') || [];
+                            if (checked) {
+                              form.setValue('selectedConsoles', [...current, option.id]);
+                            } else {
+                              form.setValue('selectedConsoles', current.filter((id) => id !== option.id));
+                            }
+                          }}
                           className="border-slate-500 data-[state=checked]:bg-cyan-400 data-[state=checked]:border-cyan-400"
                         />
                         <label htmlFor={option.id} className="text-slate-200 font-medium cursor-pointer">
                           {option.name}
                         </label>
                       </div>
-
-                      {watchSelectedGiftCards.includes(option.id) && (
-                        <FormField
-                          control={form.control}
-                          name={`giftCardUsernames.${option.id}`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-sm text-slate-300">{option.usernameLabel}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder={option.usernamePlaceholder}
-                                  value={field.value ?? ''}
-                                  onChange={(e) => {
-                                    const value = e.target.value;
-                                    handleGiftCardUsernameChange(option.id, value);
-                                  }}
-                                  className={getGiftCardInputClassName(option.id, field.value ?? '')}
-                                />
-                              </FormControl>
-                              <FormDescription className="text-xs text-slate-400">{option.helperText}</FormDescription>
-
-                              {(option.id === 'amazon' || option.id === 'itunes') && field.value && (
-                                <div className="flex items-center gap-2 text-xs">
-                                  {isEmailValid(field.value) ? (
-                                    <span className="text-emerald-400 flex items-center gap-1">✓ Valid email format</span>
-                                  ) : (
-                                    <span className="text-red-400 flex items-center gap-1">✗ Please enter a valid email address</span>
-                                  )}
-                                </div>
-                              )}
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      )}
+                    ))}
+                    
+                    {/* Additional Gaming Options */}
+                    <div className="flex items-center space-x-2 p-3 border border-slate-600 rounded-lg bg-slate-700/50 hover:border-cyan-400/50 transition-all duration-200">
+                      <Checkbox
+                        id="mobile"
+                        checked={form.watch('selectedConsoles')?.includes('mobile') || false}
+                        onCheckedChange={(checked) => {
+                          const current = form.getValues('selectedConsoles') || [];
+                          if (checked) {
+                            form.setValue('selectedConsoles', [...current, 'mobile']);
+                          } else {
+                            form.setValue('selectedConsoles', current.filter((id) => id !== 'mobile'));
+                          }
+                        }}
+                        className="border-slate-500 data-[state=checked]:bg-cyan-400 data-[state=checked]:border-cyan-400"
+                      />
+                                             <label htmlFor="mobile" className="text-slate-200 font-medium cursor-pointer">
+                         Mobile
+                       </label>
                     </div>
-                  ))}
-                </div>
+                    
+                    <div className="flex items-center space-x-2 p-3 border border-slate-600 rounded-lg bg-slate-700/50 hover:border-cyan-400/50 transition-all duration-200">
+                      <Checkbox
+                        id="none"
+                        checked={form.watch('selectedConsoles')?.includes('none') || false}
+                        onCheckedChange={(checked) => {
+                          const current = form.getValues('selectedConsoles') || [];
+                          if (checked) {
+                            form.setValue('selectedConsoles', [...current, 'none']);
+                          } else {
+                            form.setValue('selectedConsoles', current.filter((id) => id !== 'none'));
+                          }
+                        }}
+                        className="border-slate-500 data-[state=checked]:bg-cyan-400 data-[state=checked]:border-cyan-400"
+                      />
+                                             <label htmlFor="none" className="text-slate-200 font-medium cursor-pointer">
+                         None
+                       </label>
+                    </div>
+                  </div>
 
-                {/* Helper text when no gift cards selected and user chose Yes */}
-                {form.watch('purchaseGiftCards') === 'yes' &&
-                  (!watchSelectedGiftCards || watchSelectedGiftCards.length === 0) && (
-                    <div className="text-amber-400 text-sm flex items-center gap-2">
-                      <span>⚠️</span>
-                      Please select at least one gift card type above
+                  {/* Retro Console Options */}
+                  {form.watch('selectedConsoles')?.includes('retro') && (
+                    <div className="mt-6 p-4 border border-amber-400/30 bg-amber-900/20 rounded-lg">
+                      <h5 className="font-semibold text-amber-300 text-lg flex items-center gap-2 mb-4">
+                        <span className="text-2xl">🕹️</span>
+                        Select Retro Gaming Systems
+                      </h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {retroConsoleOptions.map((option) => (
+                          <div
+                            key={option.id}
+                            className="flex items-center space-x-2 p-3 border border-slate-600 rounded-lg bg-slate-700/50 hover:border-amber-400/50 transition-all duration-200"
+                          >
+                            <Checkbox
+                              id={`retro-${option.id}`}
+                              checked={form.watch('selectedRetroConsoles')?.includes(option.id) || false}
+                              onCheckedChange={(checked) => {
+                                const current = form.getValues('selectedRetroConsoles') || [];
+                                if (checked) {
+                                  form.setValue('selectedRetroConsoles', [...current, option.id]);
+                                } else {
+                                  form.setValue('selectedRetroConsoles', current.filter((id) => id !== option.id));
+                                }
+                              }}
+                              className="border-slate-500 data-[state=checked]:bg-amber-400 data-[state=checked]:border-amber-400"
+                            />
+                            <label htmlFor={`retro-${option.id}`} className="text-slate-200 font-medium cursor-pointer">
+                              {option.name}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
-                <FormMessage />
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* The Rulebook Section */}
-      <Card className="bg-slate-800/50 border-slate-600 backdrop-blur-sm hover:border-purple-400/50 transition-all duration-300">
-        <CardHeader className="border-b border-slate-600">
-          <CardTitle className="text-2xl font-bold text-purple-400 flex items-center gap-3">
-            <span className="text-3xl">📜</span>
-            The Rulebook
-          </CardTitle>
-          <CardDescription className="text-slate-300">Every good game has rules — read them before you press start</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 pt-6">
-          <FormField
-            control={form.control}
-            name="acceptedTerms"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                <FormControl>
-                  <Checkbox
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                    disabled={!hasReadTerms}
-                    className="border-slate-500 data-[state=checked]:bg-purple-400 data-[state=checked]:border-purple-400 disabled:opacity-50"
-                  />
-                </FormControl>
-                <div className="space-y-1 leading-none">
-                  <FormLabel className="text-slate-200 text-base">
-                    I agree to the{' '}
-                    <button
-                      type="button"
-                      onClick={() => setShowTerms(true)}
-                      className="text-purple-400 hover:text-purple-300 font-medium underline decoration-purple-400/50 hover:decoration-purple-300 transition-all duration-200"
-                    >
-                      Terms & Conditions
-                    </button>
-                    {!hasReadTerms && <span className="block text-xs text-amber-400 mt-1">You must read the terms first</span>}
-                  </FormLabel>
+                  {/* Helper when none selected */}
+                  {(() => {
+                    const selectedConsoles = form.watch('selectedConsoles') || [];
+                    const selectedRetroConsoles = form.watch('selectedRetroConsoles') || [];
+                    return selectedConsoles.length === 0 && selectedRetroConsoles.length === 0;
+                  })() && (
+                    <div className="text-amber-400 text-sm flex items-center gap-2">
+                      <span>⚠️</span>
+                      Please select at least one gaming system above
+                    </div>
+                  )}
+
                   <FormMessage />
                 </div>
-              </FormItem>
-            )}
-          />
-        </CardContent>
-      </Card>
+              </CardContent>
+            </Card>
+  );
+
+  // Page 4: Digital Gift Cards, Terms, Submit
+  const renderPage4 = () => (
+    <>
+                         {/* Gift Cards Section */}
+             <Card className="bg-slate-800/50 border-slate-600 backdrop-blur-sm hover:border-cyan-400/50 transition-all duration-300">
+               <CardHeader className="border-b border-slate-600">
+                 <CardTitle className="text-2xl font-bold text-cyan-400 flex items-center gap-3">
+                   <span className="text-3xl">🎁</span>
+                   Digital Gift Cards
+                 </CardTitle>
+                 <CardDescription className="text-slate-300">Do you purchase digital gift cards or plan to in the future?</CardDescription>
+               </CardHeader>
+               <CardContent className="space-y-6 pt-6">
+              <h4 className="font-semibold text-cyan-300 text-lg flex items-center gap-2">
+                <span className="text-2xl">🎁</span>
+                Do you purchase Digital Gift Cards or plan to in the future?
+              </h4>
+
+              <FormField
+                control={form.control}
+                name="purchaseGiftCards"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="flex items-center space-x-3 p-4 border border-slate-600 rounded-lg hover:border-cyan-400/50 transition-all duration-200 bg-slate-700/50">
+                          <Checkbox
+                            id="gift_cards_yes"
+                            checked={field.value === 'yes'}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                field.onChange('yes');
+                              } else {
+                                field.onChange(undefined);
+                              }
+                            }}
+                            className="border-slate-500 data-[state=checked]:bg-cyan-400 data-[state=checked]:border-cyan-400"
+                          />
+                          <label
+                            htmlFor="gift_cards_yes"
+                            className="text-lg font-medium text-slate-200 cursor-pointer flex items-center gap-2"
+                          >
+                            <span className="text-2xl">✅</span>
+                            Yes
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-3 p-4 border border-slate-600 rounded-lg hover:border-cyan-400/50 transition-all duration-200 bg-slate-700/50">
+                          <Checkbox
+                            id="gift_cards_no"
+                            checked={field.value === 'no'}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                field.onChange('no');
+                              } else {
+                                field.onChange(undefined);
+                              }
+                            }}
+                            className="border-slate-500 data-[state=checked]:bg-cyan-400 data-[state=checked]:border-cyan-400"
+                          />
+                          <label
+                            htmlFor="gift_cards_no"
+                            className="text-lg font-medium text-slate-200 cursor-pointer flex items-center gap-2"
+                          >
+                            <span className="text-2xl">❌</span>
+                            No
+                          </label>
+                        </div>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {form.watch('purchaseGiftCards') === 'yes' && (
+                <>
+              {/* Gift card selection UI */}
+                  <div className="space-y-4 p-4 border border-cyan-400/30 bg-cyan-900/20 rounded-lg">
+                    <h4 className="font-semibold text-cyan-300 text-lg flex items-center gap-2">
+                      <span className="text-2xl">🎁</span>
+                      Select Gift Card Types
+                    </h4>
+
+                    <div className="bg-amber-900/30 border border-amber-400/30 rounded-lg p-3">
+                      <p className="text-amber-200 text-sm flex items-center gap-2">
+                        <span className="text-lg">ℹ️</span>
+                        <strong>Note:</strong> If you don't have your username right now, you can update it later when you're ready to purchase.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {giftCardOptions.map((option) => (
+                        <div
+                          key={option.id}
+                          className="space-y-3 p-3 border border-slate-600 rounded-lg bg-slate-700/50 hover:border-cyan-400/50 transition-all duration-200"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={option.id}
+                              checked={watchSelectedGiftCards.includes(option.id)}
+                              onCheckedChange={(checked) => handleGiftCardChange(option.id, checked as boolean)}
+                              className="border-slate-500 data-[state=checked]:bg-cyan-400 data-[state=checked]:border-cyan-400"
+                            />
+                            <label htmlFor={option.id} className="text-slate-200 font-medium cursor-pointer">
+                              {option.name}
+                            </label>
+                          </div>
+
+                          {watchSelectedGiftCards.includes(option.id) && (
+                            <FormField
+                              control={form.control}
+                              name={`giftCardUsernames.${option.id}`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-sm text-slate-300">{option.usernameLabel}</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      placeholder={option.usernamePlaceholder}
+                                      value={field.value ?? ''}
+                                      onChange={(e) => {
+                                        const value = e.target.value;
+                                        handleGiftCardUsernameChange(option.id, value);
+                                      }}
+                                      className={getGiftCardInputClassName(option.id, field.value ?? '')}
+                                    />
+                                  </FormControl>
+                                  <FormDescription className="text-xs text-slate-400">{option.helperText}</FormDescription>
+
+                                  {(option.id === 'amazon' || option.id === 'itunes') && field.value && (
+                                    <div className="flex items-center gap-2 text-xs">
+                                      {isEmailValid(field.value) ? (
+                                        <span className="text-emerald-400 flex items-center gap-1">✓ Valid email format</span>
+                                      ) : (
+                                        <span className="text-red-400 flex items-center gap-1">✗ Please enter a valid email address</span>
+                                      )}
+                                    </div>
+                                  )}
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Helper text when no gift cards selected and user chose Yes */}
+                    {form.watch('purchaseGiftCards') === 'yes' &&
+                      (!watchSelectedGiftCards || watchSelectedGiftCards.length === 0) && (
+                        <div className="text-amber-400 text-sm flex items-center gap-2">
+                          <span>⚠️</span>
+                          Please select at least one gift card type above
+                        </div>
+                      )}
+                                         <FormMessage />
+                   </div>
+                 </>
+               )}
+               </CardContent>
+             </Card>
+
+            {/* The Rulebook Section */}
+            <Card className="bg-slate-800/50 border-slate-600 backdrop-blur-sm hover:border-purple-400/50 transition-all duration-300">
+              <CardHeader className="border-b border-slate-600">
+                <CardTitle className="text-2xl font-bold text-purple-400 flex items-center gap-3">
+                  <span className="text-3xl">📜</span>
+                  The Rulebook
+                </CardTitle>
+                <CardDescription className="text-slate-300">Every good game has rules — read them before you press start</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-6">
+                <FormField
+                  control={form.control}
+                  name="acceptedTerms"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          disabled={!hasReadTerms}
+                          className="border-slate-500 data-[state=checked]:bg-purple-400 data-[state=checked]:border-purple-400 disabled:opacity-50"
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="text-slate-200 text-base">
+                          I agree to the{' '}
+                          <button
+                            type="button"
+                            onClick={() => setShowTerms(true)}
+                            className="text-purple-400 hover:text-purple-300 font-medium underline decoration-purple-400/50 hover:decoration-purple-300 transition-all duration-200"
+                          >
+                            Terms & Conditions
+                          </button>
+                          {!hasReadTerms && <span className="block text-xs text-amber-400 mt-1">You must read the terms first</span>}
+                        </FormLabel>
+                        <FormMessage />
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
     </>
   );
 
@@ -1587,6 +1628,19 @@ export function CustomerInfoForm() {
             {currentPage === 3 && renderPage3()}
             {currentPage === 4 && renderPage4()}
 
+            {/* OTP Verification Modal */}
+            {showOTPVerification && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="w-full max-w-md">
+                  <OTPVerification
+                    phoneNumber={phoneNumberToVerify}
+                    onVerified={handleOTPVerified}
+                    onBack={handleOTPBack}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Navigation Buttons */}
             <div className="flex justify-between pt-6">
               <Button
@@ -1608,14 +1662,14 @@ export function CustomerInfoForm() {
                   Next
                 </Button>
               ) : (
-                <Button
-                  type="submit"
-                  size="lg"
-                  disabled={isSubmitting}
-                  className="px-12 py-4 text-xl font-bold bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white border-0 shadow-lg hover:shadow-emerald-400/25 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                >
-                  {isSubmitting ? 'Saving...' : 'Start My PLAY Journey'}
-                </Button>
+              <Button
+                type="submit"
+                size="lg"
+                disabled={isSubmitting}
+                className="px-12 py-4 text-xl font-bold bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white border-0 shadow-lg hover:shadow-emerald-400/25 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                {isSubmitting ? 'Saving...' : 'Start My PLAY Journey'}
+              </Button>
               )}
             </div>
           </form>

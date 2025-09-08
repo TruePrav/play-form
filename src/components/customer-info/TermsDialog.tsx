@@ -242,6 +242,36 @@ export function TermsDialog({ open, onOpenChange, onScrollToBottom }: TermsDialo
             </p>
           </section>
 
+          <section>
+            <h4 className="font-semibold text-purple-300 mb-2">11. WhatsApp Communications Consent</h4>
+            <div className="mb-3 space-y-3">
+              <p>
+                By accepting these Terms, you consent to receive communications from PLAY Barbados via WhatsApp, including but not limited to:
+              </p>
+              <ul className="list-disc list-inside ml-4 space-y-1">
+                <li>Order confirmations and delivery updates</li>
+                <li>Important account or service notifications</li>
+                <li>Marketing messages, promotional offers, and personalized deals</li>
+              </ul>
+              <p>
+                We will only use WhatsApp to communicate directly with you about PLAY Barbados products, services, and promotions.
+              </p>
+              
+              <div>
+                <h5 className="font-medium text-purple-200 mb-2">Data Use and Privacy</h5>
+                <ul className="list-disc list-inside ml-4 space-y-1">
+                  <li>Your phone number and information will only be used to deliver these communications.</li>
+                  <li>We will never sell, rent, or share your personal information with unaffiliated third parties for their own marketing purposes.</li>
+                  <li>You may opt out of promotional WhatsApp communications at any time by contacting our support team.</li>
+                </ul>
+              </div>
+              
+              <p className="text-sm text-slate-300">
+                This consent ensures compliance with WhatsApp and Meta policies. By agreeing to these Terms, you acknowledge and authorize us to message you on WhatsApp in accordance with this section.
+              </p>
+            </div>
+          </section>
+
           <div className="border-t border-slate-600 pt-4">
             <p className="text-xs text-slate-400 text-center">
               Last updated: {new Date().toLocaleDateString()}
