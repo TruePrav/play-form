@@ -28,7 +28,39 @@ const year = (v?: string | null) => {
   return Number.isFinite(d.getTime()) ? d.getUTCFullYear() : 'invalid';
 };
 
-// Name formatting helper
+// Name formatting helpers
+const formatFirstName = (name: string): string => {
+  if (!name) return '';
+  
+  // Trim whitespace and remove trailing spaces
+  let formatted = name.trim();
+  
+  // Only allow hyphens, no spaces for first names
+  formatted = formatted.replace(/\s+/g, '-');
+  
+  // Capitalize letters after hyphens and at the beginning
+  formatted = formatted.replace(/(^|-)([a-z])/g, (match, prefix, letter) => {
+    return prefix + letter.toUpperCase();
+  });
+  
+  return formatted;
+};
+
+const formatLastName = (name: string): string => {
+  if (!name) return '';
+  
+  // Trim whitespace
+  let formatted = name.trim();
+  
+  // Capitalize letters after spaces, hyphens, and at the beginning
+  formatted = formatted.replace(/(^|\s|-)([a-z])/g, (match, prefix, letter) => {
+    return prefix + letter.toUpperCase();
+  });
+  
+  return formatted;
+};
+
+// Keep the original function for backward compatibility
 const formatFullName = (name: string): string => {
   if (!name) return '';
   
@@ -95,7 +127,8 @@ const BARBADOS_TIMEZONE = 'America/Barbados';
 // Form validation schema
 const formSchema = z
   .object({
-    fullName: z.string().min(2, 'Name must be at least 2 characters').max(80, 'Name must be less than 80 characters'),
+    firstName: z.string().min(2, 'First name must be at least 2 characters').max(40, 'First name must be less than 40 characters'),
+    lastName: z.string().min(2, 'Last name must be at least 2 characters').max(40, 'Last name must be less than 40 characters'),
     email: z.string().email('Please enter a valid email address').optional().or(z.literal('')),
     whatsappNumber: z
       .string()
@@ -118,7 +151,8 @@ const formSchema = z
     giftCardUsernames: z.record(z.string().max(40, 'Username must be less than 40 characters').optional()).optional(),
     selectedConsoles: z.array(z.string()).optional(),
          selectedRetroConsoles: z.array(z.string()).optional(),
-     guardianFullName: z.string().optional(),
+     guardianFirstName: z.string().optional(),
+     guardianLastName: z.string().optional(),
      guardianDob: z.string().optional(),
      guardianWhatsappNumber: z.string().optional(),
      acceptedTerms: z.boolean().refine((val) => val === true, 'You must accept the terms and conditions'),
@@ -136,7 +170,21 @@ const formSchema = z
     if (data.purchaseGiftCards === 'yes' && data.selectedGiftCards && data.selectedGiftCards.length > 0) {
       if (!data.giftCardUsernames) return true;
       return data.selectedGiftCards.every((cardId) => {
-                 const username = data.giftCardUsernames?.[cardId];
+        // Skip username validation for PUBG and FreeFire (no username required)
+        if (cardId === 'pubg' || cardId === 'freefire') {
+          return true;
+        }
+        
+        // Special validation for "Other" gift card type
+        if (cardId === 'other') {
+          const gamePlatformName = data.giftCardUsernames?.[`${cardId}_type`];
+          if (!gamePlatformName || gamePlatformName.trim().length === 0) {
+            return false; // Game/platform name is required for "Other"
+          }
+          return true; // Username is optional for "Other"
+        }
+        
+        const username = data.giftCardUsernames?.[cardId];
         if (!username || username.trim().length === 0) return true;
         if (cardId === 'amazon' || cardId === 'itunes') {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -148,7 +196,7 @@ const formSchema = z
     return true;
   }, {
     message:
-      "If you provide usernames for gift cards, Amazon and Apple require valid email addresses. You can leave usernames blank.",
+      "If you provide usernames for gift cards, Amazon and Apple require valid email addresses. For 'Other' gift cards, you must specify the game/platform name. You can leave usernames blank.",
     path: ['giftCardUsernames'],
   })
   .refine((data) => {
@@ -168,8 +216,10 @@ const formSchema = z
         const age = differenceInYears(today, customerDate);
                  if (age < 18) {
            return (
-             data.guardianFullName &&
-             data.guardianFullName.length >= 2 &&
+             data.guardianFirstName &&
+             data.guardianFirstName.length >= 2 &&
+             data.guardianLastName &&
+             data.guardianLastName.length >= 2 &&
              data.guardianDob &&
              data.guardianDob.length > 0 &&
              data.guardianWhatsappNumber &&
@@ -181,16 +231,25 @@ const formSchema = z
     return true;
   }, {
          message: 'Parent/Guardian information is required for customers under 18 years old',
-    path: ['guardianFullName'],
+    path: ['guardianFirstName'],
   })
   .refine((data) => {
-    if (data.guardianFullName && data.guardianFullName.length > 0) {
-      return data.guardianFullName.length >= 2 && data.guardianFullName.length <= 80;
+    if (data.guardianFirstName && data.guardianFirstName.length > 0) {
+      return data.guardianFirstName.length >= 2 && data.guardianFirstName.length <= 40;
     }
     return true;
   }, {
-         message: 'Parent/Guardian legal full name must be between 2 and 80 characters',
-    path: ['guardianFullName'],
+         message: 'Parent/Guardian first name must be between 2 and 40 characters',
+    path: ['guardianFirstName'],
+  })
+  .refine((data) => {
+    if (data.guardianLastName && data.guardianLastName.length > 0) {
+      return data.guardianLastName.length >= 2 && data.guardianLastName.length <= 40;
+    }
+    return true;
+  }, {
+         message: 'Parent/Guardian last name must be between 2 and 40 characters',
+    path: ['guardianLastName'],
   })
   .refine((data) => {
     if (data.guardianDob && data.guardianDob.length > 0) {
@@ -238,13 +297,18 @@ export function CustomerInfoForm() {
   const [hasReadTerms, setHasReadTerms] = useState(false);
   const [showOTPVerification, setShowOTPVerification] = useState(false);
   const [phoneNumberToVerify, setPhoneNumberToVerify] = useState('');
+  const [showGuardianOTPVerification, setShowGuardianOTPVerification] = useState(false);
+  const [guardianPhoneNumberToVerify, setGuardianPhoneNumberToVerify] = useState('');
+  const [guardianPhoneVerified, setGuardianPhoneVerified] = useState(false);
+  const [guardianVerificationError, setGuardianVerificationError] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     shouldUnregister: false,
     defaultValues: {
-      fullName: '',
+      firstName: '',
+      lastName: '',
       email: '',
       whatsappNumber: '+1 (246) ',
       dob: '',
@@ -256,7 +320,8 @@ export function CustomerInfoForm() {
       giftCardUsernames: {},
       selectedConsoles: [],
              selectedRetroConsoles: [],
-       guardianFullName: '',
+       guardianFirstName: '',
+       guardianLastName: '',
        guardianDob: '',
                guardianWhatsappNumber: '',
        acceptedTerms: false,
@@ -277,7 +342,8 @@ export function CustomerInfoForm() {
         if (newIsMinor !== isMinor) {
           setIsMinor(newIsMinor);
                      if (!newIsMinor) {
-             form.setValue('guardianFullName', '');
+             form.setValue('guardianFirstName', '');
+             form.setValue('guardianLastName', '');
              form.setValue('guardianDob', '');
              form.setValue('guardianWhatsappNumber', '');
            }
@@ -305,6 +371,10 @@ export function CustomerInfoForm() {
     setIsSubmitting(false);
     setShowOTPVerification(false);
     setPhoneNumberToVerify('');
+    setShowGuardianOTPVerification(false);
+    setGuardianPhoneNumberToVerify('');
+    setGuardianPhoneVerified(false);
+    setGuardianVerificationError(false);
   };
 
   const resetFormStateKeepData = () => {
@@ -328,7 +398,7 @@ export function CustomerInfoForm() {
       giftCardsCount: data.selectedGiftCards?.length ?? 0,
       consolesCount: data.selectedConsoles?.length ?? 0,
       retroConsolesCount: data.selectedRetroConsoles?.length ?? 0,
-      hasGuardian: Boolean(data.guardianFullName),
+      hasGuardian: Boolean(data.guardianFirstName && data.guardianLastName),
     });
 
     try {
@@ -339,13 +409,15 @@ export function CustomerInfoForm() {
       });
 
       const { data: newId, error } = await supabase.rpc('create_player_profile', {
-        p_full_name: data.fullName,
+        p_first_name: formatFullName(data.firstName),
+        p_last_name: formatFullName(data.lastName),
         p_date_of_birth: data.dob || null,
         p_whatsapp_number: data.whatsappNumber,
         p_email: (data.email ?? '').trim().toLowerCase() || null,
         p_parish: data.parish,
         p_gender: data.gender,
-                 p_guardian_full_name: data.guardianFullName || null,
+                 p_guardian_first_name: data.guardianFirstName ? formatFullName(data.guardianFirstName) : null,
+                 p_guardian_last_name: data.guardianLastName ? formatFullName(data.guardianLastName) : null,
          p_guardian_date_of_birth: data.guardianDob || null,
          p_guardian_whatsapp_number: (data.guardianWhatsappNumber && data.guardianWhatsappNumber.trim()) || null,
          p_is_minor: isMinor,
@@ -353,10 +425,23 @@ export function CustomerInfoForm() {
         p_terms_accepted: data.acceptedTerms,
         p_terms_accepted_at: new Date().toISOString(),
         p_shop_categories: data.purchaseGiftCards === 'yes' ? ['video_games', 'gift_cards'] : ['video_games'],
-        p_gift_cards: (data.selectedGiftCards || []).map((id) => ({
-          id,
-          username: (data.giftCardUsernames?.[id] || '').trim().toLowerCase() || null,
-        })),
+        p_gift_cards: (data.selectedGiftCards || []).map((id) => {
+          if (id === 'other') {
+            // For "Other" type, use the typed game/platform name as the gift card type
+            const gamePlatformName = (data.giftCardUsernames?.[`${id}_type`] || '').trim();
+            const username = (data.giftCardUsernames?.[id] || '').trim().toLowerCase() || null;
+            return {
+              id: gamePlatformName || 'Other',
+              username: username,
+            };
+          } else {
+            // For regular gift cards, use the predefined ID
+            return {
+              id,
+              username: (data.giftCardUsernames?.[id] || '').trim().toLowerCase() || null,
+            };
+          }
+        }),
         p_consoles: data.selectedConsoles || [],
         p_retro_consoles: data.selectedRetroConsoles || [],
       });
@@ -489,6 +574,18 @@ export function CustomerInfoForm() {
           return; // Don't advance page yet, wait for OTP verification
         }
       }
+      
+      // If we're on page 2 and user is a minor, check guardian phone verification
+      if (currentPage === 2 && isMinor) {
+        const guardianWhatsappNumber = form.getValues('guardianWhatsappNumber');
+        if (guardianWhatsappNumber && !guardianPhoneVerified) {
+          // Show error message or trigger guardian verification
+          setError('Guardian WhatsApp number must be verified before proceeding.');
+          setGuardianVerificationError(true);
+          return;
+        }
+      }
+      
       setCurrentPage(currentPage + 1);
     } else if (!isValid) {
       const errors = form.formState.errors;
@@ -512,10 +609,22 @@ export function CustomerInfoForm() {
     // Stay on current page
   };
 
+  const handleGuardianOTPVerified = () => {
+    setShowGuardianOTPVerification(false);
+    setGuardianPhoneVerified(true);
+    setGuardianVerificationError(false); // Clear error when verified
+    // Stay on current page (Page 2)
+  };
+
+  const handleGuardianOTPBack = () => {
+    setShowGuardianOTPVerification(false);
+    // Stay on current page
+  };
+
   const getFieldsForPage = (page: number): (keyof FormData)[] => {
     switch (page) {
       case 1:
-        return ['fullName', 'email', 'whatsappNumber'];
+        return ['firstName', 'lastName', 'email', 'whatsappNumber'];
       case 2:
         return ['dob', 'parish', 'gender'];
       case 3:
@@ -530,6 +639,9 @@ export function CustomerInfoForm() {
   const getProgressPercentage = () => {
     // If OTP verification is showing, show progress as if we're between pages
     if (showOTPVerification) {
+      return ((currentPage + 0.5) / 4) * 100;
+    }
+    if (showGuardianOTPVerification) {
       return ((currentPage + 0.5) / 4) * 100;
     }
     return (currentPage / 4) * 100;
@@ -576,35 +688,65 @@ export function CustomerInfoForm() {
                 <CardDescription className="text-slate-300">Basic information to unlock your gaming perks</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6 pt-6">
-                <FormField
-                  control={form.control}
-                  name="fullName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-lg font-semibold text-slate-200 flex items-center gap-2">
-                        <span className="text-2xl">📝</span>
-                                                 Player Name (Legal Full Name)
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Your real name — no gamertag… yet"
-                          {...field}
-                          value={field.value}
-                          onChange={(e) => {
-                            const formattedValue = formatFullName(e.target.value);
-                            field.onChange(formattedValue);
-                          }}
-                          onBlur={(e) => {
-                            const formattedValue = formatFullName(e.target.value);
-                            field.onChange(formattedValue);
-                          }}
-                          className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:ring-emerald-400/20 transition-all duration-200"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-lg font-semibold text-slate-200 flex items-center gap-2">
+                          <span className="text-2xl">📝</span>
+                          Player Name (Legal First Name)
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Your first name"
+                            {...field}
+                            value={field.value}
+                            onChange={(e) => {
+                              const formattedValue = formatFirstName(e.target.value);
+                              field.onChange(formattedValue);
+                            }}
+                            onBlur={(e) => {
+                              const formattedValue = formatFirstName(e.target.value);
+                              field.onChange(formattedValue);
+                            }}
+                            className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:ring-emerald-400/20 transition-all duration-200"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-lg font-semibold text-slate-200 flex items-center gap-2">
+                          <span className="text-2xl">📝</span>
+                          Legal Last Name
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Your last name"
+                            {...field}
+                            value={field.value}
+                            onChange={(e) => {
+                              field.onChange(e.target.value);
+                            }}
+                            onBlur={(e) => {
+                              const formattedValue = formatLastName(e.target.value);
+                              field.onChange(formattedValue);
+                            }}
+                            className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:ring-emerald-400/20 transition-all duration-200"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <FormField
                   control={form.control}
@@ -926,33 +1068,72 @@ export function CustomerInfoForm() {
                        <span className="text-2xl">🛡️</span>
                        Parent/Guardian Information Required
                      </h4>
+                     
+                     {/* Guardian Verification Warning */}
+                     {isMinor && (
+                       <div className="bg-amber-900/30 border border-amber-500/50 rounded-lg p-3 mb-4">
+                         <div className="flex items-center gap-2 text-amber-200">
+                           <span className="text-lg">⚠️</span>
+                           <span className="text-sm font-medium">
+                             Guardian WhatsApp verification is required to proceed to the next page.
+                           </span>
+                         </div>
+                       </div>
+                     )}
 
-                    <FormField
-                      control={form.control}
-                      name="guardianFullName"
-                      render={({ field }) => (
-                        <FormItem>
-                                                     <FormLabel className="text-slate-200">Parent/Guardian Legal Full Name</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Enter parent/guardian's legal full name"
-                              {...field}
-                              value={field.value}
-                              onChange={(e) => {
-                                const formattedValue = formatFullName(e.target.value);
-                                field.onChange(formattedValue);
-                              }}
-                              onBlur={(e) => {
-                                const formattedValue = formatFullName(e.target.value);
-                                field.onChange(formattedValue);
-                              }}
-                              className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="guardianFirstName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-slate-200">Parent/Guardian Legal First Name</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Enter parent/guardian's first name"
+                                {...field}
+                                value={field.value}
+                                onChange={(e) => {
+                                  const formattedValue = formatFirstName(e.target.value);
+                                  field.onChange(formattedValue);
+                                }}
+                                onBlur={(e) => {
+                                  const formattedValue = formatFirstName(e.target.value);
+                                  field.onChange(formattedValue);
+                                }}
+                                className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="guardianLastName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-slate-200">Parent/Guardian Legal Last Name</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Enter parent/guardian's last name"
+                                {...field}
+                                value={field.value}
+                                onChange={(e) => {
+                                  field.onChange(e.target.value);
+                                }}
+                                onBlur={(e) => {
+                                  const formattedValue = formatLastName(e.target.value);
+                                  field.onChange(formattedValue);
+                                }}
+                                className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-amber-400 focus:ring-amber-400/20 transition-all duration-200"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
                     <FormField
                       control={form.control}
@@ -1189,6 +1370,33 @@ export function CustomerInfoForm() {
                            </FormControl>
                            <FormDescription className="text-slate-400">We'll use this to contact the parent/guardian if needed</FormDescription>
                            <FormMessage />
+                           
+                           {/* Guardian WhatsApp Verification Button */}
+                           {field.value && field.value.length > 10 && (
+                             <div className="mt-3">
+                               {guardianPhoneVerified ? (
+                                 <div className="w-full bg-green-600 text-white font-semibold py-2 px-4 rounded-lg text-center">
+                                   ✅ Guardian WhatsApp Verified
+                                 </div>
+                               ) : (
+                                 <Button
+                                   type="button"
+                                   onClick={() => {
+                                     setGuardianPhoneNumberToVerify(field.value || '');
+                                     setShowGuardianOTPVerification(true);
+                                     setGuardianVerificationError(false); // Clear error when clicking verify
+                                   }}
+                                   className={`w-full text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 ${
+                                     guardianVerificationError
+                                       ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 shadow-lg shadow-red-500/25 text-lg font-bold'
+                                       : 'bg-amber-600 hover:bg-amber-500 py-2 px-4'
+                                   }`}
+                                 >
+                                   📱 Verify Guardian WhatsApp Number
+                                 </Button>
+                               )}
+                             </div>
+                           )}
                          </FormItem>
                        )}
                      />
@@ -1458,38 +1666,100 @@ export function CustomerInfoForm() {
                           </div>
 
                           {watchSelectedGiftCards.includes(option.id) && (
-                            <FormField
-                              control={form.control}
-                              name={`giftCardUsernames.${option.id}`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-sm text-slate-300">{option.usernameLabel}</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      placeholder={option.usernamePlaceholder}
-                                      value={field.value ?? ''}
-                                      onChange={(e) => {
-                                        const value = e.target.value;
-                                        handleGiftCardUsernameChange(option.id, value);
-                                      }}
-                                      className={getGiftCardInputClassName(option.id, field.value ?? '')}
-                                    />
-                                  </FormControl>
-                                  <FormDescription className="text-xs text-slate-400">{option.helperText}</FormDescription>
-
-                                  {(option.id === 'amazon' || option.id === 'itunes') && field.value && (
-                                    <div className="flex items-center gap-2 text-xs">
-                                      {isEmailValid(field.value) ? (
-                                        <span className="text-emerald-400 flex items-center gap-1">✓ Valid email format</span>
-                                      ) : (
-                                        <span className="text-red-400 flex items-center gap-1">✗ Please enter a valid email address</span>
-                                      )}
-                                    </div>
+                            <div>
+                            {/* Special handling for "Other" gift card type */}
+                            {option.id === 'other' && (
+                              <div className="space-y-3">
+                                {/* Game/Platform Name Field */}
+                                <FormField
+                                  control={form.control}
+                                  name={`giftCardUsernames.${option.id}_type`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel className="text-sm text-slate-300">Game/Platform Name</FormLabel>
+                                      <FormControl>
+                                        <Input
+                                          placeholder="Enter the game or platform name"
+                                          value={field.value ?? ''}
+                                          onChange={(e) => {
+                                            const value = e.target.value;
+                                            form.setValue(`giftCardUsernames.${option.id}_type` as const, value);
+                                          }}
+                                          className="bg-slate-600 border-slate-500 text-white placeholder:text-slate-400 focus:border-cyan-400 focus:ring-cyan-400/20 transition-all duration-200"
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
                                   )}
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
+                                />
+                                
+                                {/* Username Field */}
+                                <FormField
+                                  control={form.control}
+                                  name={`giftCardUsernames.${option.id}`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel className="text-sm text-slate-300">{option.usernameLabel}</FormLabel>
+                                      <FormControl>
+                                        <Input
+                                          placeholder={option.usernamePlaceholder}
+                                          value={field.value ?? ''}
+                                          onChange={(e) => {
+                                            const value = e.target.value;
+                                            handleGiftCardUsernameChange(option.id, value);
+                                          }}
+                                          className={getGiftCardInputClassName(option.id, field.value ?? '')}
+                                        />
+                                      </FormControl>
+                                      <FormDescription className="text-xs text-slate-400">{option.helperText}</FormDescription>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+                            )}
+                            
+                            {/* Regular username field for other gift cards */}
+                            {option.id !== 'other' && option.usernameLabel && (
+                              <FormField
+                                control={form.control}
+                                name={`giftCardUsernames.${option.id}`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-sm text-slate-300">{option.usernameLabel}</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        placeholder={option.usernamePlaceholder}
+                                        value={field.value ?? ''}
+                                        onChange={(e) => {
+                                          const value = e.target.value;
+                                          handleGiftCardUsernameChange(option.id, value);
+                                        }}
+                                        className={getGiftCardInputClassName(option.id, field.value ?? '')}
+                                      />
+                                    </FormControl>
+                                    <FormDescription className="text-xs text-slate-400">{option.helperText}</FormDescription>
+
+                                    {(option.id === 'amazon' || option.id === 'itunes') && field.value && (
+                                      <div className="flex items-center gap-2 text-xs">
+                                        {isEmailValid(field.value) ? (
+                                          <span className="text-emerald-400 flex items-center gap-1">✓ Valid email format</span>
+                                        ) : (
+                                          <span className="text-red-400 flex items-center gap-1">✗ Please enter a valid email address</span>
+                                        )}
+                                      </div>
+                                    )}
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            )}
+                            
+                            {/* Show helper text for cards without username fields */}
+                            {!option.usernameLabel && (
+                              <div className="text-xs text-slate-400 mt-2">{option.helperText}</div>
+                            )}
+                            </div>
                           )}
                         </div>
                       ))}
@@ -1636,6 +1906,21 @@ export function CustomerInfoForm() {
                     phoneNumber={phoneNumberToVerify}
                     onVerified={handleOTPVerified}
                     onBack={handleOTPBack}
+                    isGuardian={false}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Guardian OTP Verification Modal */}
+            {showGuardianOTPVerification && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="w-full max-w-md">
+                  <OTPVerification
+                    phoneNumber={guardianPhoneNumberToVerify}
+                    onVerified={handleGuardianOTPVerified}
+                    onBack={handleGuardianOTPBack}
+                    isGuardian={true}
                   />
                 </div>
               </div>
@@ -1657,9 +1942,16 @@ export function CustomerInfoForm() {
                 <Button
                   type="button"
                   onClick={nextPage}
-                  className="px-8 py-3 text-lg font-semibold bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white border-0 shadow-lg hover:shadow-emerald-400/25 transition-all duration-300 transform hover:scale-105"
+                  className={`border-0 shadow-lg transition-all duration-300 transform hover:scale-105 ${
+                    currentPage === 2 && isMinor && !guardianPhoneVerified
+                      ? 'px-4 py-2 text-sm font-medium bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white hover:shadow-amber-400/25'
+                      : 'px-8 py-3 text-lg font-semibold bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white hover:shadow-emerald-400/25'
+                  }`}
                 >
-                  Next
+                  {currentPage === 2 && isMinor && !guardianPhoneVerified
+                    ? '📱 Verify Guardian Phone First'
+                    : 'Next'
+                  }
                 </Button>
               ) : (
               <Button

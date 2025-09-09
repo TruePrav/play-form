@@ -10,12 +10,14 @@ interface OTPVerificationProps {
   phoneNumber: string;
   onVerified: () => void;
   onBack: () => void;
+  isGuardian?: boolean;
 }
 
 export const OTPVerification: React.FC<OTPVerificationProps> = ({
   phoneNumber,
   onVerified,
-  onBack
+  onBack,
+  isGuardian = false
 }) => {
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -138,11 +140,12 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
       <CardHeader className="border-b border-slate-600">
         <CardTitle className="text-2xl font-bold text-emerald-400 flex items-center gap-3">
           <span className="text-3xl">📱</span>
-          Verify Your Phone Number
+          {isGuardian ? 'Verify Guardian Phone Number' : 'Verify Your Phone Number'}
         </CardTitle>
         <CardDescription className="text-slate-400">
           We&apos;ve sent a 6-digit WhatsApp verification code to{' '}
           <span className="font-mono text-emerald-400">{phoneNumber}</span>
+          {isGuardian && ' (Guardian)'}
         </CardDescription>
       </CardHeader>
       

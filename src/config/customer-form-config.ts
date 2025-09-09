@@ -48,9 +48,9 @@ export const giftCardOptions: GiftCardOption[] = [
   {
     id: 'freefire',
     name: 'FreeFire Diamonds',
-    usernameLabel: 'FreeFire Player ID',
-    usernamePlaceholder: 'Enter your FreeFire Player ID',
-    helperText: 'Your FreeFire Player ID (found in game settings)'
+    usernameLabel: '',
+    usernamePlaceholder: '',
+    helperText: 'No username required - gift card will be sent directly'
   },
   {
     id: 'playstation',
@@ -76,9 +76,9 @@ export const giftCardOptions: GiftCardOption[] = [
   {
     id: 'pubg',
     name: 'PUBG UC',
-    usernameLabel: 'PUBG Player ID',
-    usernamePlaceholder: 'Enter your PUBG Player ID',
-    helperText: 'Your PUBG Player ID (found in game settings)'
+    usernameLabel: '',
+    usernamePlaceholder: '',
+    helperText: 'No username required - gift card will be sent directly'
   },
   {
     id: 'riot',
@@ -95,11 +95,11 @@ export const giftCardOptions: GiftCardOption[] = [
     helperText: 'Your Steam username as it appears on Steam'
   },
   {
-    id: 'wizard101',
-    name: 'Wizard 101',
-    usernameLabel: 'Wizard 101 Username',
-    usernamePlaceholder: 'Enter your Wizard 101 username',
-    helperText: 'Your Wizard 101 username as it appears in the game'
+    id: 'other',
+    name: 'Other',
+    usernameLabel: 'Username/Email (if applicable)',
+    usernamePlaceholder: 'Enter username or email if needed',
+    helperText: 'Specify the game/platform name and username if required'
   }
 ];
 
@@ -176,17 +176,17 @@ export interface GenderOption {
 }
 
 export const parishOptions: ParishOption[] = [
-  { id: 'St. Lucy', name: 'St. Lucy' },
-  { id: 'St. Peter', name: 'St. Peter' },
+  { id: 'Christ Church', name: 'Christ Church' },
   { id: 'St. Andrew', name: 'St. Andrew' },
-  { id: 'St. James', name: 'St. James' },
-  { id: 'St. Joseph', name: 'St. Joseph' },
   { id: 'St. George', name: 'St. George' },
-  { id: 'St. Thomas', name: 'St. Thomas' },
+  { id: 'St. James', name: 'St. James' },
   { id: 'St. John', name: 'St. John' },
+  { id: 'St. Joseph', name: 'St. Joseph' },
+  { id: 'St. Lucy', name: 'St. Lucy' },
   { id: 'St. Michael', name: 'St. Michael' },
+  { id: 'St. Peter', name: 'St. Peter' },
   { id: 'St. Phillip', name: 'St. Phillip' },
-  { id: 'Christ Church', name: 'Christ Church' }
+  { id: 'St. Thomas', name: 'St. Thomas' }
 ];
 
 export const genderOptions: GenderOption[] = [

@@ -10,6 +10,8 @@ import { logger } from '@/lib/logger';
 
 interface Customer {
   id: string;
+  first_name?: string;
+  last_name?: string;
   full_name: string;
   date_of_birth: string;
   whatsapp_country_code: string;
@@ -17,6 +19,8 @@ interface Customer {
   custom_country_code?: string;
   created_at: string;
   is_minor: boolean;
+  guardian_first_name?: string;
+  guardian_last_name?: string;
   guardian_full_name?: string;
   guardian_date_of_birth?: string;
   email?: string;
@@ -120,6 +124,8 @@ export default function AdminPanel() {
 
   const filteredCustomers = customers.filter(customer => {
     const matchesSearch = customer.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (customer.first_name && customer.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (customer.last_name && customer.last_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
                          customer.whatsapp_number.includes(searchTerm);
     
     // If no filters are applied, just return search results
@@ -328,6 +334,8 @@ export default function AdminPanel() {
       const categories = getCustomerCategories(customer.id);
       
       return {
+        'First Name': customer.first_name || '',
+        'Last Name': customer.last_name || '',
         'Full Name': customer.full_name,
         'Email': customer.email || '',
         'Date of Birth': customer.date_of_birth,
@@ -336,6 +344,8 @@ export default function AdminPanel() {
         'Gender': customer.gender || '',
         'Phone Verified': customer.phone_verified ? 'Yes' : 'No',
         'Is Minor': customer.is_minor,
+        'Guardian First Name': customer.guardian_first_name || '',
+        'Guardian Last Name': customer.guardian_last_name || '',
         'Guardian Name': customer.guardian_full_name || '',
         'Guardian Date of Birth': customer.guardian_date_of_birth || '',
         'Guardian WhatsApp': customer.guardian_whatsapp_number || '',
@@ -853,7 +863,11 @@ export default function AdminPanel() {
                       <div className="flex justify-between items-start mb-3">
                         <div>
                           <div className="flex items-center gap-2">
-                            <h3 className="text-xl font-semibold text-white">{customer.full_name}</h3>
+                            <h3 className="text-xl font-semibold text-white">
+                              {customer.first_name && customer.last_name 
+                                ? `${customer.first_name} ${customer.last_name}` 
+                                : customer.full_name}
+                            </h3>
                             {(() => {
                               const hasNullUsernameGiftCard = giftCards
                                 .filter(gc => gc.customer_id === customer.id)
