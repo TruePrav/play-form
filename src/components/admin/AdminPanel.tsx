@@ -654,8 +654,8 @@ export default function AdminPanel() {
                 <SelectItem value="nintendoswitch2">Nintendo Switch 2</SelectItem>
                 <SelectItem value="pc">PC</SelectItem>
                 <SelectItem value="retro">Retro</SelectItem>
-                <SelectItem value="ps1">PS1</SelectItem>
-                <SelectItem value="ps2">PS2</SelectItem>
+                <SelectItem value="ps1">PS1/PS2</SelectItem>
+                <SelectItem value="ps2">PS3</SelectItem>
                 <SelectItem value="xbox">Xbox</SelectItem>
                 <SelectItem value="psp">PSP/PS Vita</SelectItem>
                 <SelectItem value="nintendo64-snes">Nintendo 64/SNES</SelectItem>

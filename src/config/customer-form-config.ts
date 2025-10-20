@@ -141,11 +141,11 @@ export const consoleOptions: ConsoleOption[] = [
 export const retroConsoleOptions: RetroConsoleOption[] = [
   {
     id: 'ps1',
-    name: 'PS1'
+    name: 'PS1/PS2'
   },
   {
     id: 'ps2',
-    name: 'PS2'
+    name: 'PS3'
   },
   {
     id: 'xbox',
