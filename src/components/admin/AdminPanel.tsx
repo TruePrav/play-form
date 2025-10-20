@@ -650,16 +650,16 @@ export default function AdminPanel() {
                 <SelectItem value="xbox360">Xbox 360</SelectItem>
                 <SelectItem value="ps4">PlayStation 4</SelectItem>
                 <SelectItem value="ps5">PlayStation 5</SelectItem>
-                <SelectItem value="nintendoswitch">Nintendo Switch</SelectItem>
+                <SelectItem value="nintendoswitch">Nintendo Switch / Switch OLED</SelectItem>
                 <SelectItem value="nintendoswitch2">Nintendo Switch 2</SelectItem>
                 <SelectItem value="pc">PC</SelectItem>
                 <SelectItem value="retro">Retro</SelectItem>
                 <SelectItem value="ps1">PS1</SelectItem>
                 <SelectItem value="ps2">PS2</SelectItem>
                 <SelectItem value="xbox">Xbox</SelectItem>
-                <SelectItem value="psp">PSP</SelectItem>
+                <SelectItem value="psp">PSP/PS Vita</SelectItem>
                 <SelectItem value="nintendo64-snes">Nintendo 64/SNES</SelectItem>
-                <SelectItem value="nintendo3ds-ds-wii">Nintendo 3DS/DS/WII</SelectItem>
+                <SelectItem value="nintendo3ds-ds-wii">Nintendo 3DS/DS/WII/Gamecube</SelectItem>
               </SelectContent>
             </Select>
           </div>

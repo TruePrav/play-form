@@ -122,7 +122,7 @@ export const consoleOptions: ConsoleOption[] = [
   },
   {
     id: 'nintendoswitch',
-    name: 'Nintendo Switch'
+    name: 'Nintendo Switch / Switch OLED'
   },
   {
     id: 'nintendoswitch2',
@@ -153,7 +153,7 @@ export const retroConsoleOptions: RetroConsoleOption[] = [
   },
   {
     id: 'psp',
-    name: 'PSP'
+    name: 'PSP/PS Vita'
   },
   {
     id: 'nintendo64-snes',
@@ -161,7 +161,7 @@ export const retroConsoleOptions: RetroConsoleOption[] = [
   },
   {
     id: 'nintendo3ds-ds-wii',
-    name: 'Nintendo 3DS/DS/WII'
+    name: 'Nintendo 3DS/DS/WII/Gamecube'
   }
 ];
 
