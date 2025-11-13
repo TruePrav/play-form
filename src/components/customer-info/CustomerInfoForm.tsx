@@ -1886,6 +1886,7 @@ export function CustomerInfoForm() {
 
         <Form {...form}>
           <form
+            id="entry-form"
             onSubmit={form.handleSubmit(onSubmit, (errors) => {
               logger.error('Form validation errors:', errors);
               scrollToFirstError(errors);
