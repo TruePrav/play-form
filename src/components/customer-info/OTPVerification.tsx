@@ -92,8 +92,9 @@ export const OTPVerification: React.FC<OTPVerificationProps> = ({
       } else {
         setError(data.error || 'Verification failed');
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to verify OTP');
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error('Failed to verify OTP');
+      setError(error.message || 'Failed to verify OTP');
     } finally {
       setIsLoading(false);
     }

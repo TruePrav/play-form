@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
+import { trackCTAClick, trackSubmitSuccess } from '@/lib/analytics';
 
 export default function HomePage() {
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -35,14 +37,11 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    // Expose global tracking function
+    // Expose global tracking function for form integration
     if (typeof window !== 'undefined') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window as any).gwTrackSubmitSuccess = function() {
-        if ((window as any).gtag) {
-          (window as any).gtag('event', 'giveaway_submit_success');
-        } else if ((window as any).dataLayer) {
-          (window as any).dataLayer.push({ event: 'giveaway_submit_success' });
-        }
+        trackSubmitSuccess();
       };
     }
   }, []);
@@ -77,14 +76,8 @@ export default function HomePage() {
   }, [isImageModalOpen]);
 
   const handleCTAClick = () => {
-    // Tracking
-    if (typeof window !== 'undefined') {
-      if ((window as any).gtag) {
-        (window as any).gtag('event', 'giveaway_cta_click');
-      } else if ((window as any).dataLayer) {
-        (window as any).dataLayer.push({ event: 'giveaway_cta_click' });
-      }
-    }
+    // Track the click
+    trackCTAClick();
     
     // Scroll to entry form
     const entryForm = document.getElementById('entry-form');
@@ -102,10 +95,13 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto p-4 space-y-4">
           {/* PLAY Logo */}
           <div className="text-center mb-2">
-            <img 
+            <Image 
               src="/play-black.png" 
               alt="PLAY Logo" 
+              width={200}
+              height={160}
               className="h-40 w-auto mx-auto drop-shadow-2xl"
+              priority
             />
           </div>
           
@@ -141,10 +137,13 @@ export default function HomePage() {
                   className="gw-image-button"
                   aria-label="View giveaway image in full size"
                 >
-                  <img 
+                  <Image 
                     src="/switch_giveaway.png" 
                     alt="Christmas at PLAY Giveaway — Win a Nintendo Switch 2"
+                    width={550}
+                    height={400}
                     className="gw-image"
+                    priority
                   />
                 </button>
               </div>
@@ -190,7 +189,7 @@ export default function HomePage() {
               <h1 className="text-3xl font-bold text-emerald-400 mb-3">PLAY Barbados</h1>
               <p className="text-base text-slate-300 max-w-3xl mx-auto leading-relaxed">
                 Your premier destination for gaming and entertainment in Barbados. 
-                From gift cards to video games, we've got everything you need for the ultimate gaming experience.
+                From gift cards to video games, we&apos;ve got everything you need for the ultimate gaming experience.
               </p>
             </div>
           </div>
@@ -201,9 +200,18 @@ export default function HomePage() {
       {isImageModalOpen && (
         <div 
           className="gw-image-modal"
-          onClick={() => setIsImageModalOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Giveaway image viewer"
         >
           <button
+            type="button"
+            className="gw-image-modal-backdrop"
+            onClick={() => setIsImageModalOpen(false)}
+            aria-label="Close image viewer"
+          />
+          <button
+            type="button"
             className="gw-image-modal-close"
             onClick={(e) => {
               e.stopPropagation();
@@ -216,11 +224,15 @@ export default function HomePage() {
           <div 
             className="gw-image-modal-content"
             onClick={(e) => e.stopPropagation()}
+            role="none"
           >
-            <img 
+            <Image 
               src="/switch_giveaway.png" 
               alt="Christmas at PLAY Giveaway — Win a Nintendo Switch 2"
+              width={1200}
+              height={900}
               className="gw-image-modal-img"
+              quality={95}
             />
           </div>
         </div>
@@ -293,6 +305,7 @@ export default function HomePage() {
             border-radius: 0.5rem;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
             display: block;
+            object-fit: contain;
           }
           
           .gw-button-container {
@@ -307,13 +320,24 @@ export default function HomePage() {
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.9);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 10000;
             padding: 2rem;
+          }
+          
+          .gw-image-modal-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            border: none;
+            padding: 0;
             cursor: pointer;
+            z-index: 1;
           }
           
           .gw-image-modal-content {
@@ -324,6 +348,7 @@ export default function HomePage() {
             align-items: center;
             justify-content: center;
             cursor: default;
+            z-index: 2;
           }
           
           .gw-image-modal-img {
@@ -333,6 +358,7 @@ export default function HomePage() {
             height: auto;
             border-radius: 0.5rem;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            object-fit: contain;
           }
           
           .gw-image-modal-close {

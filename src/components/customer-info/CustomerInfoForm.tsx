@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -87,7 +88,7 @@ function SuccessPage({ onReset }: { onReset: () => void }) {
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         <div className="text-center">
           <div className="mb-4">
-            <img src="/play-black.png" alt="PLAY Logo" className="h-64 w-auto mx-auto drop-shadow-2xl" />
+            <Image src="/play-black.png" alt="PLAY Logo" width={256} height={256} className="h-64 w-auto mx-auto drop-shadow-2xl" priority />
           </div>
         </div>
 
@@ -101,7 +102,7 @@ function SuccessPage({ onReset }: { onReset: () => void }) {
               </p>
               <div className="bg-slate-700/50 rounded-lg p-4 border border-slate-600 mb-6">
                 <p className="text-slate-300 text-sm">
-                  We'll use your WhatsApp number to send you updates about gaming loot and special offers!
+                  We&apos;ll use your WhatsApp number to send you updates about gaming loot and special offers!
                 </p>
               </div>
               <div className="space-y-4">
@@ -963,7 +964,7 @@ export function CustomerInfoForm() {
                           />
                         </div>
                       </FormControl>
-                      <FormDescription className="text-slate-400">We'll use this to send you updates about your gaming loot</FormDescription>
+                      <FormDescription className="text-slate-400">We&apos;ll use this to send you updates about your gaming loot</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1368,7 +1369,7 @@ export function CustomerInfoForm() {
                                />
                              </div>
                            </FormControl>
-                           <FormDescription className="text-slate-400">We'll use this to contact the parent/guardian if needed</FormDescription>
+                           <FormDescription className="text-slate-400">We&apos;ll use this to contact the parent/guardian if needed</FormDescription>
                            <FormMessage />
                            
                            {/* Guardian WhatsApp Verification Button */}
@@ -1643,7 +1644,7 @@ export function CustomerInfoForm() {
                     <div className="bg-amber-900/30 border border-amber-400/30 rounded-lg p-3">
                       <p className="text-amber-200 text-sm flex items-center gap-2">
                         <span className="text-lg">ℹ️</span>
-                        <strong>Note:</strong> If you don't have your username right now, you can update it later when you're ready to purchase.
+                        <strong>Note:</strong> If you don&apos;t have your username right now, you can update it later when you&apos;re ready to purchase.
                       </p>
                     </div>
 
@@ -1842,7 +1843,7 @@ export function CustomerInfoForm() {
         <div className="max-w-2xl mx-auto p-6">
           <div className="text-center mb-8">
             <div className="mb-4">
-              <img src="/play-black.png" alt="PLAY Logo" className="h-32 w-auto mx-auto drop-shadow-2xl" />
+              <Image src="/play-black.png" alt="PLAY Logo" width={128} height={128} className="h-32 w-auto mx-auto drop-shadow-2xl" priority />
             </div>
           </div>
 
@@ -1876,7 +1877,7 @@ export function CustomerInfoForm() {
 
         <div className="text-center">
           <div className="mb-4">
-            <img src="/play-black.png" alt="PLAY Logo" className="h-64 w-auto mx-auto drop-shadow-2xl" />
+            <Image src="/play-black.png" alt="PLAY Logo" width={256} height={256} className="h-64 w-auto mx-auto drop-shadow-2xl" priority />
           </div>
 
           <h2 className="text-3xl font-semibold text-slate-300 mb-4">{getPageTitle()}</h2>

@@ -54,11 +54,32 @@ interface CustomerShoppingCategory {
   category: string;
 }
 
+interface AnalyticsEvent {
+  id: string;
+  event_type: string;
+  event_name: string;
+  user_agent?: string;
+  referrer?: string;
+  page_url?: string;
+  session_id?: string;
+  created_at: string;
+}
+
+interface AnalyticsSummary {
+  event_name: string;
+  event_type: string;
+  event_date: string;
+  event_count: number;
+  unique_sessions: number;
+}
+
 export default function AdminPanel() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [giftCards, setGiftCards] = useState<CustomerGiftCard[]>([]);
   const [consoles, setConsoles] = useState<CustomerConsole[]>([]);
   const [shoppingCategories, setShoppingCategories] = useState<CustomerShoppingCategory[]>([]);
+  const [analyticsEvents, setAnalyticsEvents] = useState<AnalyticsEvent[]>([]);
+  const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('all');
@@ -70,6 +91,7 @@ export default function AdminPanel() {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [editingGiftCard, setEditingGiftCard] = useState<CustomerGiftCard | null>(null);
   const [nullUsernamePage, setNullUsernamePage] = useState(1);
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -110,10 +132,33 @@ export default function AdminPanel() {
 
       if (categoriesError) throw categoriesError;
 
+      // Fetch analytics events
+      const { data: analyticsData, error: analyticsError } = await supabase
+        .from('analytics_events')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (analyticsError) {
+        logger.warn('Analytics events not available:', analyticsError);
+      }
+
+      // Fetch analytics summary
+      const { data: summaryData, error: summaryError } = await supabase
+        .from('analytics_summary')
+        .select('*')
+        .limit(50);
+
+      if (summaryError) {
+        logger.warn('Analytics summary not available:', summaryError);
+      }
+
       setCustomers(customersData || []);
       setGiftCards(giftCardsData || []);
       setConsoles(consolesData || []);
       setShoppingCategories(categoriesData || []);
+      setAnalyticsEvents(analyticsData || []);
+      setAnalyticsSummary(summaryData || []);
 
     } catch (error) {
       logger.error('Error fetching data:', error);
@@ -380,7 +425,7 @@ export default function AdminPanel() {
     downloadCSV(csv, filename);
   };
 
-  const convertToCSV = (data: any[]) => {
+  const convertToCSV = (data: Record<string, unknown>[]) => {
     const headers = Object.keys(data[0]);
     const csvRows = [headers.join(',')];
     
@@ -449,6 +494,115 @@ export default function AdminPanel() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Analytics Section */}
+        <Card className="bg-slate-800/50 border-slate-600">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-2xl text-emerald-400">Giveaway Analytics</CardTitle>
+                <CardDescription className="text-slate-300">
+                  Track CTA clicks and form submissions
+                </CardDescription>
+              </div>
+              <Button
+                onClick={() => setShowAnalytics(!showAnalytics)}
+                variant="outline"
+                className="bg-slate-700 hover:bg-slate-600"
+              >
+                {showAnalytics ? 'Hide' : 'Show'} Analytics
+              </Button>
+            </div>
+          </CardHeader>
+          {showAnalytics && (
+            <CardContent>
+              {analyticsEvents.length === 0 ? (
+                <div className="text-center py-8 text-slate-400">
+                  <p>No analytics data available yet.</p>
+                  <p className="text-sm mt-2">Events will appear here once users start interacting with the giveaway.</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-slate-700/50 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-emerald-400">
+                        {analyticsEvents.filter(e => e.event_name === 'giveaway_cta_click').length}
+                      </div>
+                      <div className="text-slate-300">CTA Clicks</div>
+                    </div>
+                    <div className="bg-slate-700/50 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-blue-400">
+                        {analyticsEvents.filter(e => e.event_name === 'giveaway_submit_success').length}
+                      </div>
+                      <div className="text-slate-300">Form Submissions</div>
+                    </div>
+                    <div className="bg-slate-700/50 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-purple-400">
+                        {new Set(analyticsEvents.map(e => e.session_id)).size}
+                      </div>
+                      <div className="text-slate-300">Unique Sessions</div>
+                    </div>
+                  </div>
+
+                  {/* Summary Table */}
+                  {analyticsSummary.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-white mb-3">Daily Summary</h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-slate-600">
+                              <th className="text-left p-2 text-slate-300">Date</th>
+                              <th className="text-left p-2 text-slate-300">Event</th>
+                              <th className="text-right p-2 text-slate-300">Count</th>
+                              <th className="text-right p-2 text-slate-300">Sessions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {analyticsSummary.slice(0, 10).map((summary, idx) => (
+                              <tr key={idx} className="border-b border-slate-700/50">
+                                <td className="p-2 text-slate-300">{new Date(summary.event_date).toLocaleDateString()}</td>
+                                <td className="p-2 text-white">{summary.event_name}</td>
+                                <td className="p-2 text-right text-emerald-400">{summary.event_count}</td>
+                                <td className="p-2 text-right text-blue-400">{summary.unique_sessions}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recent Events */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-3">Recent Events (Last 20)</h3>
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {analyticsEvents.slice(0, 20).map((event) => (
+                        <div key={event.id} className="bg-slate-700/30 rounded p-3 text-sm">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="font-semibold text-emerald-400">{event.event_name}</span>
+                              <span className="text-slate-400 ml-2">{event.event_type}</span>
+                            </div>
+                            <div className="text-slate-400">
+                              {new Date(event.created_at).toLocaleString()}
+                            </div>
+                          </div>
+                          {event.page_url && (
+                            <div className="text-slate-500 text-xs mt-1 truncate">
+                              {event.page_url}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          )}
+        </Card>
 
         {/* NULL Username Gift Cards Alert */}
         {(() => {
