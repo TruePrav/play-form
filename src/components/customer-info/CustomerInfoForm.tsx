@@ -808,7 +808,9 @@ export function CustomerInfoForm() {
                           <div className="absolute left-3 top-1/2 transform -translate-y-1/2 z-20 pointer-events-none">
                             <div className="flex items-center gap-1 text-slate-300">
                               {(() => {
+                                // Detect country code - check for Barbados first, then US/Canada, then others
                                 const currentCode = field.value?.startsWith('+1 (246)') ? '+1 (246)' : 
+                                                  (field.value?.startsWith('+1 (') || field.value?.startsWith('+1 ')) ? '+1' :
                                                   field.value?.startsWith('+1') ? '+1' :
                                                   field.value?.startsWith('+44') ? '+44' :
                                                   field.value?.startsWith('+91') ? '+91' :
@@ -845,6 +847,7 @@ export function CustomerInfoForm() {
                           
                           <Select
                             value={field.value?.startsWith('+1 (246)') ? '+1 (246)' : 
+                                  (field.value?.startsWith('+1 (') || field.value?.startsWith('+1 ')) ? '+1' :
                                   field.value?.startsWith('+1') ? '+1' :
                                   field.value?.startsWith('+44') ? '+44' :
                                   field.value?.startsWith('+91') ? '+91' :
@@ -953,7 +956,9 @@ export function CustomerInfoForm() {
                         return;
                       }
                       
+                              // Detect country code - check for Barbados first, then US/Canada, then others
                               const countryCode = field.value?.startsWith('+1 (246)') ? '+1 (246)' : 
+                                                 (field.value?.startsWith('+1 (') || field.value?.startsWith('+1 ')) ? '+1' :
                                                  field.value?.startsWith('+1') ? '+1' :
                                                  field.value?.startsWith('+44') ? '+44' :
                                                  field.value?.startsWith('+91') ? '+91' :
@@ -965,23 +970,39 @@ export function CustomerInfoForm() {
                                                  field.value?.startsWith('+55') ? '+55' :
                                                  '+1 (246)';
                               
-                              // Extract just the number part (remove country code)
-                              const numberPart = value.replace(/^\+\d+(?:\s\(\d+\))?\s?/, '');
+                              // Extract all digits from the input value
+                              const allDigits = value.replace(/\D/g, '');
                               
                               // Format Barbados numbers
-                              if (countryCode === '+1 (246)' && numberPart.length > 3) {
-                                const digits = numberPart.replace(/\D/g, '');
+                              if (countryCode === '+1 (246)') {
+                                const digits = allDigits.replace(/^1?246?/, '').slice(0, 7);
                                 if (digits.length > 3) {
                                   const formatted = digits.slice(0, 3) + '-' + digits.slice(3, 7);
                                   field.onChange(countryCode + ' ' + formatted);
-                                  e.target.value = formatted;
-                                } else {
+                                } else if (digits.length > 0) {
                                   field.onChange(countryCode + ' ' + digits);
-                                  e.target.value = digits;
+                                } else {
+                                  field.onChange(countryCode + ' ');
+                                }
+                              } else if (countryCode === '+1') {
+                                // Format US/Canada numbers: +1 (XXX) XXX-XXXX (10 digits)
+                                // Remove the leading 1 if present (country code)
+                                const digits = allDigits.replace(/^1/, '').slice(0, 10);
+                                if (digits.length === 0) {
+                                  field.onChange('+1 ');
+                                } else if (digits.length <= 3) {
+                                  field.onChange('+1 (' + digits);
+                                } else if (digits.length <= 6) {
+                                  const formatted = '(' + digits.slice(0, 3) + ') ' + digits.slice(3);
+                                  field.onChange('+1 ' + formatted);
+                                } else {
+                                  const formatted = '(' + digits.slice(0, 3) + ') ' + digits.slice(3, 6) + '-' + digits.slice(6, 10);
+                                  field.onChange('+1 ' + formatted);
                                 }
                               } else {
+                                // Extract just the number part (remove country code)
+                                const numberPart = value.replace(/^\+\d+(?:\s\(\d+\))?\s?/, '');
                                 field.onChange(countryCode + ' ' + numberPart);
-                                e.target.value = numberPart;
                               }
                             }}
                           />
@@ -1213,7 +1234,9 @@ export function CustomerInfoForm() {
                                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 z-20 pointer-events-none">
                                  <div className="flex items-center gap-1 text-slate-300">
                                    {(() => {
+                                     // Detect country code - check for Barbados first, then US/Canada, then others
                                      const currentCode = field.value?.startsWith('+1 (246)') ? '+1 (246)' : 
+                                                       (field.value?.startsWith('+1 (') || field.value?.startsWith('+1 ')) ? '+1' :
                                                        field.value?.startsWith('+1') ? '+1' :
                                                        field.value?.startsWith('+44') ? '+44' :
                                                        field.value?.startsWith('+91') ? '+91' :
@@ -1250,6 +1273,7 @@ export function CustomerInfoForm() {
                                
                                <Select
                                  value={field.value?.startsWith('+1 (246)') ? '+1 (246)' : 
+                                       (field.value?.startsWith('+1 (') || field.value?.startsWith('+1 ')) ? '+1' :
                                        field.value?.startsWith('+1') ? '+1' :
                                        field.value?.startsWith('+44') ? '+44' :
                                        field.value?.startsWith('+91') ? '+91' :
@@ -1358,7 +1382,9 @@ export function CustomerInfoForm() {
                             return;
                           }
                           
+                                   // Detect country code - check for Barbados first, then US/Canada, then others
                                    const countryCode = field.value?.startsWith('+1 (246)') ? '+1 (246)' : 
+                                                      (field.value?.startsWith('+1 (') || field.value?.startsWith('+1 ')) ? '+1' :
                                                       field.value?.startsWith('+1') ? '+1' :
                                                       field.value?.startsWith('+44') ? '+44' :
                                                       field.value?.startsWith('+91') ? '+91' :
@@ -1370,23 +1396,39 @@ export function CustomerInfoForm() {
                                                       field.value?.startsWith('+55') ? '+55' :
                                                       '+1 (246)';
                                    
-                                   // Extract just the number part (remove country code)
-                                   const numberPart = value.replace(/^\+\d+(?:\s\(\d+\))?\s?/, '');
+                                   // Extract all digits from the input value
+                                   const allDigits = value.replace(/\D/g, '');
                                    
                                    // Format Barbados numbers
-                                   if (countryCode === '+1 (246)' && numberPart.length > 3) {
-                                     const digits = numberPart.replace(/\D/g, '');
+                                   if (countryCode === '+1 (246)') {
+                                     const digits = allDigits.replace(/^1?246?/, '').slice(0, 7);
                                      if (digits.length > 3) {
                                        const formatted = digits.slice(0, 3) + '-' + digits.slice(3, 7);
                                        field.onChange(countryCode + ' ' + formatted);
-                                       e.target.value = formatted;
-                                     } else {
+                                     } else if (digits.length > 0) {
                                        field.onChange(countryCode + ' ' + digits);
-                                       e.target.value = digits;
+                                     } else {
+                                       field.onChange(countryCode + ' ');
+                                     }
+                                   } else if (countryCode === '+1') {
+                                     // Format US/Canada numbers: +1 (XXX) XXX-XXXX (10 digits)
+                                     // Remove the leading 1 if present (country code)
+                                     const digits = allDigits.replace(/^1/, '').slice(0, 10);
+                                     if (digits.length === 0) {
+                                       field.onChange('+1 ');
+                                     } else if (digits.length <= 3) {
+                                       field.onChange('+1 (' + digits);
+                                     } else if (digits.length <= 6) {
+                                       const formatted = '(' + digits.slice(0, 3) + ') ' + digits.slice(3);
+                                       field.onChange('+1 ' + formatted);
+                                     } else {
+                                       const formatted = '(' + digits.slice(0, 3) + ') ' + digits.slice(3, 6) + '-' + digits.slice(6, 10);
+                                       field.onChange('+1 ' + formatted);
                                      }
                                    } else {
+                                     // Extract just the number part (remove country code)
+                                     const numberPart = value.replace(/^\+\d+(?:\s\(\d+\))?\s?/, '');
                                      field.onChange(countryCode + ' ' + numberPart);
-                                     e.target.value = numberPart;
                                    }
                                  }}
                                />
