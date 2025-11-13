@@ -92,22 +92,23 @@ export default function HomePage() {
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 text-white">
-        <div className="max-w-4xl mx-auto p-4 space-y-4">
-          {/* PLAY Logo */}
-          <div className="text-center mb-2">
-            <Image 
-              src="/play-black.png" 
-              alt="PLAY Logo" 
-              width={200}
-              height={160}
-              className="h-40 w-auto mx-auto drop-shadow-2xl"
-              priority
-            />
-          </div>
-          
-          <div className="text-center space-y-3">
-            {/* Giveaway Hero Block */}
-            <div className="gw-hero-block">
+        <div className="max-w-4xl mx-auto pt-2 pb-4 px-4">
+          {/* Hero Stack: Logo + Countdown */}
+          <section className="flex flex-col items-center pt-2 gap-3">
+            {/* PLAY Logo */}
+            <div className="flex justify-center mb-1 mt-0">
+              <Image 
+                src="/play-black.png" 
+                alt="PLAY Logo" 
+                width={280}
+                height={84}
+                className="h-auto w-auto object-contain drop-shadow-2xl"
+                priority
+              />
+            </div>
+
+            {/* Countdown */}
+            <div id="countdown-wrapper" className="m-0 p-0">
               <div className="gw-countdown" role="timer" aria-live="polite" aria-label="Countdown to giveaway deadline">
                 <div className="gw-countdown-item">
                   <span className="gw-countdown-value">{String(countdown.days).padStart(2, '0')}</span>
@@ -129,7 +130,12 @@ export default function HomePage() {
                   <span className="gw-countdown-label">Seconds</span>
                 </div>
               </div>
-              
+            </div>
+          </section>
+          
+          <div className="text-center space-y-3">
+            {/* Giveaway Hero Block */}
+            <div className="gw-hero-block">
               <div className="gw-image-container">
                 <button
                   type="button"
@@ -162,10 +168,10 @@ export default function HomePage() {
                 There will be weekly winners of $100 PLAY Gift vouchers.
               </p>
               <p className="gw-fine-print">
-                LIVE drawings for weekly winners - 12 PM on December 4th, 11th, 18th.
+                <strong>LIVE drawings</strong> for weekly winners - <strong>12 PM on December 4th, 11th, 18th.</strong>
               </p>
               <p className="gw-fine-print">
-                LIVE drawing for grand prize will be December 25th, 12 PM.
+                <strong>LIVE drawing</strong> for grand prize will be <strong>December 25th, 12 PM.</strong>
               </p>
               <p className="gw-fine-print">
                 Follow our instagram{' '}
@@ -255,7 +261,7 @@ export default function HomePage() {
       <style dangerouslySetInnerHTML={{
         __html: `
           .gw-hero-block {
-            margin: 0.5rem 0;
+            margin: 0;
             padding: 1rem;
             text-align: center;
           }
@@ -397,7 +403,7 @@ export default function HomePage() {
             justify-content: center;
             align-items: center;
             gap: 0.5rem;
-            margin: 0.75rem 0 0.5rem 0;
+            margin: 0;
             flex-wrap: wrap;
           }
           
@@ -431,6 +437,7 @@ export default function HomePage() {
             flex-direction: column;
             align-items: center;
             min-width: 60px;
+            gap: 0;
           }
           
           .gw-countdown-value {
@@ -445,7 +452,8 @@ export default function HomePage() {
             color: #94a3b8;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            margin-top: 0.2rem;
+            margin-top: 0;
+            line-height: 1;
           }
           
           .gw-countdown-separator {

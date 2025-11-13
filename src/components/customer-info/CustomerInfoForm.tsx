@@ -98,15 +98,38 @@ function SuccessPage({ onReset }: { onReset: () => void }) {
               <div className="text-emerald-400 text-8xl mb-6">🎉</div>
               <h2 className="text-4xl font-bold text-emerald-400 mb-4">Mission Complete!</h2>
               <p className="text-xl text-slate-200 mb-6 leading-relaxed">
-                Your player profile has been successfully saved to our database. Welcome to PLAY Barbados!
+                You&apos;ve successfully entered all the giveaways!
               </p>
-              <div className="bg-slate-700/50 rounded-lg p-4 border border-slate-600 mb-6">
+              <div className="bg-slate-700/50 rounded-lg p-4 border border-slate-600 mb-6 space-y-2">
                 <p className="text-slate-300 text-sm">
-                  We&apos;ll use your WhatsApp number to send you updates about gaming loot and special offers!
+                  There will be weekly winners of $100 PLAY Gift vouchers.
+                </p>
+                <p className="text-slate-300 text-sm">
+                  <strong>LIVE drawings</strong> for weekly winners - <strong>12 PM on December 4th, 11th, 18th.</strong>
+                </p>
+                <p className="text-slate-300 text-sm">
+                  <strong>LIVE drawing</strong> for grand prize will be <strong>December 25th, 12 PM.</strong>
+                </p>
+                <p className="text-slate-300 text-sm">
+                  Follow our instagram{' '}
+                  <a 
+                    href="https://www.instagram.com/playbarbados.bb/" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-emerald-400 underline hover:text-emerald-300 transition-colors"
+                  >
+                    @playbarbados.bb
+                  </a>
+                  {' '}for updates and to view LIVE drawing.
+                </p>
+                <p className="text-slate-300 text-sm">
+                  Entries close December 24th, 6 PM.
                 </p>
               </div>
               <div className="space-y-4">
-                <p className="text-emerald-400 text-lg">Thank you for joining PLAY Barbados!</p>
+                <p className="text-slate-300 text-sm">
+                  We will contact you via WhatsApp for updates regarding the giveaway and special offers!
+                </p>
                 <Button
                   onClick={onReset}
                   className="px-8 py-3 text-lg font-semibold bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white border-0 shadow-lg hover:shadow-emerald-400/25 transition-all duration-300 transform hover:scale-105"
