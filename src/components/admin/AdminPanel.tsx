@@ -800,7 +800,7 @@ export default function AdminPanel() {
               </SelectTrigger>
               <SelectContent className="bg-slate-800 text-white border-slate-600">
                 <SelectItem value="all">All Consoles</SelectItem>
-                <SelectItem value="xboxone">Xbox One</SelectItem>
+                <SelectItem value="xboxone">Xbox One / Series S|X</SelectItem>
                 <SelectItem value="xbox360">Xbox 360</SelectItem>
                 <SelectItem value="ps4">PlayStation 4</SelectItem>
                 <SelectItem value="ps5">PlayStation 5</SelectItem>

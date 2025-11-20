@@ -106,7 +106,7 @@ export const giftCardOptions: GiftCardOption[] = [
 export const consoleOptions: ConsoleOption[] = [
   {
     id: 'xboxone',
-    name: 'Xbox One'
+    name: 'Xbox One / Series S|X'
   },
   {
     id: 'xbox360',
