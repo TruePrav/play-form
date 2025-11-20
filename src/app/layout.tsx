@@ -29,7 +29,10 @@ export const metadata: Metadata = {
   },
   manifest: '/manifest.json',
   icons: {
-    icon: '/favicon.ico',
+    icon: [
+      { url: '/favicon.jpg', type: 'image/jpeg' },
+      { url: '/favicon.ico', type: 'image/x-icon' },
+    ],
     apple: '/apple-touch-icon.png',
   },
   // Security: Add CSP meta tag
@@ -53,6 +56,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Favicon links for better browser compatibility */}
+        <link rel="icon" type="image/jpeg" href="/favicon.jpg" />
+        <link rel="shortcut icon" type="image/jpeg" href="/favicon.jpg" />
         {/* Security: Additional security meta tags */}
         <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
         <meta httpEquiv="X-Frame-Options" content="DENY" />
