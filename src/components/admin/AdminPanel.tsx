@@ -378,13 +378,19 @@ export default function AdminPanel() {
       const consoles = getCustomerConsoles(customer.id);
       const categories = getCustomerCategories(customer.id);
       
+      // Format WhatsApp number properly, handling undefined values
+      // If country_code exists, combine it with number. Otherwise, use number as-is (it may contain full number)
+      const whatsapp = customer.whatsapp_country_code 
+        ? `${customer.whatsapp_country_code}${customer.whatsapp_number || ''}`
+        : (customer.whatsapp_number || '');
+      
       return {
         'First Name': customer.first_name || '',
         'Last Name': customer.last_name || '',
         'Full Name': customer.full_name,
         'Email': customer.email || '',
         'Date of Birth': customer.date_of_birth,
-        'WhatsApp': `${customer.whatsapp_country_code}${customer.whatsapp_number}`,
+        'WhatsApp': whatsapp,
         'Parish': customer.parish || '',
         'Gender': customer.gender || '',
         'Phone Verified': customer.phone_verified ? 'Yes' : 'No',
@@ -429,10 +435,33 @@ export default function AdminPanel() {
     const headers = Object.keys(data[0]);
     const csvRows = [headers.join(',')];
     
+    // Fields that might contain phone numbers or formulas that need escaping
+    const phoneFields = ['WhatsApp', 'Guardian WhatsApp'];
+    
     for (const row of data) {
       const values = headers.map(header => {
-        const value = row[header];
-        return `"${value}"`;
+        let value = row[header];
+        
+        // Convert to string, handling null/undefined
+        const stringValue = value == null ? '' : String(value);
+        
+        // Escape phone numbers to prevent Google Sheets from interpreting them as formulas
+        // If the value starts with =, +, -, @, or a digit, prefix with a single quote
+        if (phoneFields.includes(header) && stringValue) {
+          const firstChar = stringValue.trim().charAt(0);
+          if (firstChar === '=' || firstChar === '+' || firstChar === '-' || firstChar === '@' || /^\d/.test(stringValue.trim())) {
+            // Prefix with single quote to force Google Sheets to treat as text
+            value = `'${stringValue}`;
+          } else {
+            value = stringValue;
+          }
+        } else {
+          value = stringValue;
+        }
+        
+        // Escape quotes and wrap in quotes
+        const escapedValue = String(value).replace(/"/g, '""');
+        return `"${escapedValue}"`;
       });
       csvRows.push(values.join(','));
     }
