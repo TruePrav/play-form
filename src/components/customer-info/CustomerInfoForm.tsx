@@ -102,10 +102,10 @@ function SuccessPage({ onReset }: { onReset: () => void }) {
               </p>
               <div className="bg-slate-700/50 rounded-lg p-4 border border-slate-600 mb-6 space-y-2">
                 <p className="text-slate-300 text-sm">
-                  There will be weekly winners of $100 PLAY Gift vouchers.
+                  There will be weekly winners of various prizes.
                 </p>
                 <p className="text-slate-300 text-sm">
-                  <strong>LIVE drawings</strong> for weekly winners - <strong>12 PM on December 4th, 11th, 18th.</strong>
+                  <strong>LIVE drawings</strong> for weekly winners - <strong>6 PM on December 4th, 11th, 18th.</strong>
                 </p>
                 <p className="text-slate-300 text-sm">
                   <strong>LIVE drawing</strong> for grand prize will be <strong>December 25th, 12 PM.</strong>

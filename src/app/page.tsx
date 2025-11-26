@@ -165,10 +165,10 @@ export default function HomePage() {
               </div>
               
               <p className="gw-fine-print">
-                There will be weekly winners of $100 PLAY Gift vouchers.
+                There will be weekly winners of various prizes.
               </p>
               <p className="gw-fine-print">
-                <strong>LIVE drawings</strong> for weekly winners - <strong>12 PM on December 4th, 11th, 18th.</strong>
+                <strong>LIVE drawings</strong> for weekly winners - <strong>6 PM on December 4th, 11th, 18th.</strong>
               </p>
               <p className="gw-fine-print">
                 <strong>LIVE drawing</strong> for grand prize will be <strong>December 25th, 12 PM.</strong>
