@@ -196,7 +196,7 @@ export function TermsDialog({ open, onOpenChange, onScrollToBottom }: TermsDialo
           <section>
             <h4 className="font-semibold text-purple-300 mb-2">4. Use License</h4>
             <p className="mb-3">
-              Permission is granted to temporarily download one copy of materials (information or software) on PLAY Barbados's website for personal, non-commercial, transitory viewing only.
+              Permission is granted to temporarily download one copy of materials (information or software) on PLAY Barbados&apos;s website for personal, non-commercial, transitory viewing only.
             </p>
           </section>
 

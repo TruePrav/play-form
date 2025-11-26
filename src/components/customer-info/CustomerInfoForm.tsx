@@ -1954,7 +1954,7 @@ export function CustomerInfoForm() {
           <form
             id="entry-form"
             onSubmit={form.handleSubmit(onSubmit, (errors) => {
-              logger.error('Form validation errors:', errors);
+              logger.debug('Form validation errors:', errors);
               scrollToFirstError(errors);
             })}
             className="space-y-6"

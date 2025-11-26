@@ -38,7 +38,9 @@ interface CustomerGiftCard {
   id: string;
   customer_id: string;
   gift_card_type: string;
-  username: string;
+  username: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface CustomerConsole {
@@ -184,8 +186,10 @@ export default function AdminPanel() {
       .filter(cat => cat.customer_id === customer.id)
       .map(cat => cat.category);
     
-    const customerGiftCards = giftCards
-      .filter(gc => gc.customer_id === customer.id)
+    const customerGiftCardObjects = giftCards
+      .filter(gc => gc.customer_id === customer.id);
+    
+    const customerGiftCardTypes = customerGiftCardObjects
       .map(gc => gc.gift_card_type);
     
     const customerConsoles = consoles
@@ -195,7 +199,7 @@ export default function AdminPanel() {
     // Debug logging
     logger.debug(`Customer ${customer.full_name}:`, {
       categories: customerCategories,
-      giftCards: customerGiftCards,
+      giftCards: customerGiftCardTypes,
       consoles: customerConsoles,
       filterCategory,
       filterGiftCard,
@@ -215,13 +219,12 @@ export default function AdminPanel() {
     if (filterGiftCard !== 'all') {
       if (filterGiftCard === 'null_usernames') {
         // Special filter for NULL usernames
-        const hasNullUsernameGiftCard = giftCards
-          .filter(gc => gc.customer_id === customer.id)
-          .some(gc => !gc.username);
+        // Check if customer has gift cards with null usernames
+        const hasNullUsernameGiftCard = customerGiftCardObjects.some(gc => !gc.username);
         matchesFilters = matchesFilters && hasNullUsernameGiftCard;
         logger.debug(`NULL username gift card filter: ${hasNullUsernameGiftCard}`);
       } else {
-        const hasGiftCard = customerGiftCards.includes(filterGiftCard);
+        const hasGiftCard = customerGiftCardTypes.includes(filterGiftCard);
         matchesFilters = matchesFilters && hasGiftCard;
         logger.debug(`Gift card filter ${filterGiftCard}: ${hasGiftCard}`);
       }
@@ -305,23 +308,26 @@ export default function AdminPanel() {
 
   const handleSaveGiftCard = async (updatedGiftCard: CustomerGiftCard) => {
     try {
+      // Save to customer_gift_cards table
       const { error } = await supabase
         .from('customer_gift_cards')
         .update({
-          username: updatedGiftCard.username
+          username: updatedGiftCard.username || null
         })
         .eq('id', updatedGiftCard.id);
 
       if (error) throw error;
 
+      // Update local state
       setGiftCards(giftCards.map(gc => 
         gc.id === updatedGiftCard.id ? updatedGiftCard : gc
       ));
+      
       setEditingGiftCard(null);
       
-      logger.info('Gift card username updated successfully:', updatedGiftCard);
+      logger.info('Gift card updated successfully:', updatedGiftCard);
     } catch (error) {
-      logger.error('Error updating gift card username:', error);
+      logger.error('Error updating gift card:', error);
     }
   };
 
@@ -374,7 +380,7 @@ export default function AdminPanel() {
   const exportToCSV = () => {
     // Use filteredCustomers instead of customers to respect current filters
     const csvData = filteredCustomers.map(customer => {
-      const giftCards = getCustomerGiftCards(customer.id);
+      const customerGiftCards = getCustomerGiftCards(customer.id);
       const consoles = getCustomerConsoles(customer.id);
       const categories = getCustomerCategories(customer.id);
       
@@ -383,6 +389,13 @@ export default function AdminPanel() {
       const whatsapp = customer.whatsapp_country_code 
         ? `${customer.whatsapp_country_code}${customer.whatsapp_number || ''}`
         : (customer.whatsapp_number || '');
+      
+      // Separate gift card types and accounts
+      const giftCardTypes = customerGiftCards.map(gc => getGiftCardDisplayName(gc.gift_card_type));
+      const giftCardAccounts = customerGiftCards
+        .filter(gc => gc.username)
+        .map(gc => `${getGiftCardDisplayName(gc.gift_card_type)}: ${gc.username}`)
+        .join('; ');
       
       return {
         'First Name': customer.first_name || '',
@@ -405,7 +418,8 @@ export default function AdminPanel() {
         'Terms Accepted': customer.terms_accepted ? 'Yes' : 'No',
         'Terms Accepted At': customer.terms_accepted_at || '',
         'Shopping Categories': categories.map(c => c.category).join(', '),
-        'Gift Cards': giftCards.map(gc => `${gc.gift_card_type}: ${gc.username}`).join('; '),
+        'Gift Card Types': giftCardTypes.join(', '),
+        'Gift Card Accounts': giftCardAccounts || '',
         'Consoles': consoles.map(c => c.console_type).join(', '),
         'Created': customer.created_at
       };
@@ -635,6 +649,7 @@ export default function AdminPanel() {
 
         {/* NULL Username Gift Cards Alert */}
         {(() => {
+          // Find gift cards with null usernames
           const nullUsernameGiftCards = giftCards.filter(gc => !gc.username);
           if (nullUsernameGiftCards.length === 0) return null;
           
@@ -1052,9 +1067,8 @@ export default function AdminPanel() {
                                 : customer.full_name}
                             </h3>
                             {(() => {
-                              const hasNullUsernameGiftCard = giftCards
-                                .filter(gc => gc.customer_id === customer.id)
-                                .some(gc => !gc.username);
+                              const customerGiftCards = getCustomerGiftCards(customer.id);
+                              const hasNullUsernameGiftCard = customerGiftCards.some(gc => !gc.username);
                               return hasNullUsernameGiftCard ? (
                                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-900/50 text-amber-300 border border-amber-400/50">
                                   ⚠️ NULL Username
@@ -1098,9 +1112,26 @@ export default function AdminPanel() {
                         </div>
                         
                         <div>
-                          <span className="text-emerald-400 font-semibold">Gift Cards:</span>
+                          <span className="text-emerald-400 font-semibold">Gift Card Types:</span>
                           <div className="text-slate-300">
-                            {getCustomerGiftCards(customer.id).map(gc => (
+                            {getCustomerGiftCards(customer.id).length > 0 ? (
+                              getCustomerGiftCards(customer.id).map(gc => (
+                                <span key={gc.id} className="inline-block bg-slate-600 px-2 py-1 rounded mr-2 mb-1">
+                                  {getGiftCardDisplayName(gc.gift_card_type)}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-slate-500 italic text-xs">None</span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <span className="text-emerald-400 font-semibold">Gift Card Accounts:</span>
+                          <div className="text-slate-300">
+                            {getCustomerGiftCards(customer.id)
+                              .filter(gc => gc.username) // Only show ones with usernames
+                              .map(gc => (
                               <div key={gc.id} className="text-xs mb-2">
                                 {editingGiftCard?.id === gc.id ? (
                                   // Edit Mode
@@ -1136,9 +1167,7 @@ export default function AdminPanel() {
                                   // Display Mode
                                   <div className="flex items-center gap-2">
                                     <span>
-                                      {getGiftCardDisplayName(gc.gift_card_type)}: {gc.username || (
-                                        <span className="text-amber-400 italic">NULL username</span>
-                                      )}
+                                      {getGiftCardDisplayName(gc.gift_card_type)}: <span className="text-blue-300">{gc.username}</span>
                                     </span>
                                     <Button
                                       onClick={() => handleEditGiftCard(gc)}
@@ -1151,6 +1180,9 @@ export default function AdminPanel() {
                                 )}
                               </div>
                             ))}
+                            {getCustomerGiftCards(customer.id).filter(gc => gc.username).length === 0 && (
+                              <span className="text-slate-500 italic text-xs">No accounts</span>
+                            )}
                           </div>
                         </div>
                         
