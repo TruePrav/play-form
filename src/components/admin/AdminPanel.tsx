@@ -104,35 +104,121 @@ export default function AdminPanel() {
     setNullUsernamePage(1);
   }, [giftCards.length]);
 
+  // Helper function to fetch all records in batches (Supabase limit is 1000 per query)
+  const fetchAllCustomers = async () => {
+    const allCustomers: Customer[] = [];
+    let from = 0;
+    const batchSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(from, from + batchSize - 1);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allCustomers.push(...data);
+        from += batchSize;
+        hasMore = data.length === batchSize;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    return allCustomers;
+  };
+
+  const fetchAllGiftCards = async () => {
+    const allGiftCards: CustomerGiftCard[] = [];
+    let from = 0;
+    const batchSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('customer_gift_cards')
+        .select('*')
+        .range(from, from + batchSize - 1);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allGiftCards.push(...data);
+        from += batchSize;
+        hasMore = data.length === batchSize;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    return allGiftCards;
+  };
+
+  const fetchAllConsoles = async () => {
+    const allConsoles: CustomerConsole[] = [];
+    let from = 0;
+    const batchSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('customer_consoles')
+        .select('*')
+        .range(from, from + batchSize - 1);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allConsoles.push(...data);
+        from += batchSize;
+        hasMore = data.length === batchSize;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    return allConsoles;
+  };
+
+  const fetchAllCategories = async () => {
+    const allCategories: CustomerShoppingCategory[] = [];
+    let from = 0;
+    const batchSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('customer_shopping_categories')
+        .select('*')
+        .range(from, from + batchSize - 1);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allCategories.push(...data);
+        from += batchSize;
+        hasMore = data.length === batchSize;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    return allCategories;
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
       
-      // Fetch all data (this will work before RLS is enabled)
-      const { data: customersData, error: customersError } = await supabase
-        .from('customers')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (customersError) throw customersError;
-
-      const { data: giftCardsData, error: giftCardsError } = await supabase
-        .from('customer_gift_cards')
-        .select('*');
-
-      if (giftCardsError) throw giftCardsError;
-
-      const { data: consolesData, error: consolesError } = await supabase
-        .from('customer_consoles')
-        .select('*');
-
-      if (consolesError) throw consolesError;
-
-      const { data: categoriesData, error: categoriesError } = await supabase
-        .from('customer_shopping_categories')
-        .select('*');
-
-      if (categoriesError) throw categoriesError;
+      // Fetch all data in batches to handle > 1000 records
+      const customersData = await fetchAllCustomers();
+      const giftCardsData = await fetchAllGiftCards();
+      const consolesData = await fetchAllConsoles();
+      const categoriesData = await fetchAllCategories();
 
       // Fetch analytics events
       const { data: analyticsData, error: analyticsError } = await supabase
@@ -155,10 +241,10 @@ export default function AdminPanel() {
         logger.warn('Analytics summary not available:', summaryError);
       }
 
-      setCustomers(customersData || []);
-      setGiftCards(giftCardsData || []);
-      setConsoles(consolesData || []);
-      setShoppingCategories(categoriesData || []);
+      setCustomers(customersData);
+      setGiftCards(giftCardsData);
+      setConsoles(consolesData);
+      setShoppingCategories(categoriesData);
       setAnalyticsEvents(analyticsData || []);
       setAnalyticsSummary(summaryData || []);
 
@@ -377,14 +463,104 @@ export default function AdminPanel() {
     return giftCardNames[giftCardType] || giftCardType;
   };
 
-  const exportToCSV = () => {
-    // Use filteredCustomers instead of customers to respect current filters
-    const csvData = filteredCustomers.map(customer => {
-      const customerGiftCards = getCustomerGiftCards(customer.id);
-      const consoles = getCustomerConsoles(customer.id);
-      const categories = getCustomerCategories(customer.id);
+  const exportToCSV = async () => {
+    try {
+      // Show loading state
+      setLoading(true);
       
-      // Format WhatsApp number properly, handling undefined values
+      // Fetch ALL data from database for export (not just what's loaded in UI)
+      const allCustomers = await fetchAllCustomers();
+      const allGiftCards = await fetchAllGiftCards();
+      const allConsoles = await fetchAllConsoles();
+      const allCategories = await fetchAllCategories();
+
+      // Apply filters if any are active
+      let customersToExport = allCustomers;
+      
+      if (filterCategory !== 'all' || filterGiftCard !== 'all' || filterConsole !== 'all' || 
+          filterParish !== 'all' || filterGender !== 'all' || filterPhoneVerified !== 'all' || searchTerm) {
+        
+        // Apply filters to all customers
+        customersToExport = allCustomers.filter(customer => {
+          const matchesSearch = !searchTerm || 
+            customer.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (customer.first_name && customer.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (customer.last_name && customer.last_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            customer.whatsapp_number.includes(searchTerm);
+          
+          if (!matchesSearch) return false;
+          
+          const customerCategories = (allCategories || [])
+            .filter(cat => cat.customer_id === customer.id)
+            .map(cat => cat.category);
+          
+          const customerGiftCardObjects = (allGiftCards || [])
+            .filter(gc => gc.customer_id === customer.id);
+          
+          const customerGiftCardTypes = customerGiftCardObjects.map(gc => gc.gift_card_type);
+          
+          const customerConsoles = (allConsoles || [])
+            .filter(c => c.customer_id === customer.id)
+            .map(c => c.console_type);
+          
+          let matchesFilters = true;
+          
+          if (filterCategory !== 'all') {
+            matchesFilters = matchesFilters && customerCategories.includes(filterCategory);
+          }
+          
+          if (filterGiftCard !== 'all') {
+            if (filterGiftCard === 'null_usernames') {
+              matchesFilters = matchesFilters && customerGiftCardObjects.some(gc => !gc.username);
+            } else {
+              matchesFilters = matchesFilters && customerGiftCardTypes.includes(filterGiftCard);
+            }
+          }
+          
+          if (filterConsole !== 'all') {
+            matchesFilters = matchesFilters && customerConsoles.includes(filterConsole);
+          }
+          
+          if (filterParish !== 'all') {
+            matchesFilters = matchesFilters && customer.parish === filterParish;
+          }
+          
+          if (filterGender !== 'all') {
+            matchesFilters = matchesFilters && customer.gender === filterGender;
+          }
+          
+          if (filterPhoneVerified !== 'all') {
+            const isVerified = customer.phone_verified === true;
+            matchesFilters = matchesFilters && (
+              (filterPhoneVerified === 'verified' && isVerified) ||
+              (filterPhoneVerified === 'not_verified' && !isVerified)
+            );
+          }
+          
+          return matchesFilters;
+        });
+      }
+      
+      // Helper functions using the fetched data
+      const getCustomerGiftCardsForExport = (customerId: string) => {
+        return (allGiftCards || []).filter(gc => gc.customer_id === customerId);
+      };
+      
+      const getCustomerConsolesForExport = (customerId: string) => {
+        return (allConsoles || []).filter(c => c.customer_id === customerId);
+      };
+      
+      const getCustomerCategoriesForExport = (customerId: string) => {
+        return (allCategories || []).filter(cat => cat.customer_id === customerId);
+      };
+      
+      // Generate CSV data
+      const csvData = customersToExport.map(customer => {
+        const customerGiftCards = getCustomerGiftCardsForExport(customer.id);
+        const consoles = getCustomerConsolesForExport(customer.id);
+        const categories = getCustomerCategoriesForExport(customer.id);
+        
+        // Format WhatsApp number properly, handling undefined values
       // If country_code exists, combine it with number. Otherwise, use number as-is (it may contain full number)
       const whatsapp = customer.whatsapp_country_code 
         ? `${customer.whatsapp_country_code}${customer.whatsapp_number || ''}`
@@ -443,6 +619,13 @@ export default function AdminPanel() {
     filename += '.csv';
     
     downloadCSV(csv, filename);
+    
+    setLoading(false);
+    logger.info(`CSV exported with ${customersToExport.length} customers`);
+    } catch (error) {
+      logger.error('Error exporting CSV:', error);
+      setLoading(false);
+    }
   };
 
   const convertToCSV = (data: Record<string, unknown>[]) => {
