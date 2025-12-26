@@ -243,7 +243,55 @@ export function TermsDialog({ open, onOpenChange, onScrollToBottom }: TermsDialo
           </section>
 
           <section>
-            <h4 className="font-semibold text-purple-300 mb-2">11. WhatsApp Communications Consent</h4>
+            <h4 className="font-semibold text-purple-300 mb-2">11. Use of Likeness and Promotional Content</h4>
+            <div className="mb-3 space-y-3">
+              <p>
+                By accepting these Terms, you grant PLAY Barbados permission to use your name, image, likeness, voice, and any photographs or video recordings of you taken at our store, events, or during interactions with our business (collectively, &quot;Your Likeness&quot;) in our promotional materials.
+              </p>
+              
+              <div>
+                <h5 className="font-medium text-purple-200 mb-2">Permitted Uses</h5>
+                <p>We may use Your Likeness in the following ways:</p>
+                <ul className="list-disc list-inside ml-4 space-y-1">
+                  <li>Social media posts (Facebook, Instagram, TikTok, Twitter, etc.)</li>
+                  <li>Marketing and promotional videos</li>
+                  <li>Website content and online advertising</li>
+                  <li>In-store displays and printed materials</li>
+                  <li>Press releases and media coverage</li>
+                  <li>Any other promotional or marketing purposes</li>
+                </ul>
+              </div>
+
+              <div>
+                <h5 className="font-medium text-purple-200 mb-2">Rights and Releases</h5>
+                <ul className="list-disc list-inside ml-4 space-y-1">
+                  <li>You waive any right to inspect or approve the finished materials in which Your Likeness appears.</li>
+                  <li>You release PLAY Barbados from any claims related to the use of Your Likeness.</li>
+                  <li>This permission is perpetual and may be used worldwide without additional compensation.</li>
+                  <li>You confirm that you are of legal age or have parental/guardian consent if you are a minor.</li>
+                </ul>
+              </div>
+
+              <div>
+                <h5 className="font-medium text-purple-200 mb-2">Opt-Out Rights</h5>
+                <p>
+                  If you do not wish to have Your Likeness used in promotional materials:
+                </p>
+                <ul className="list-disc list-inside ml-4 space-y-1">
+                  <li>You must inform PLAY Barbados staff immediately when visiting our store or attending our events.</li>
+                  <li>You may contact us via WhatsApp or email to request removal of existing content featuring Your Likeness (where reasonably possible).</li>
+                  <li>Opting out does not affect your ability to use our services or participate in promotions.</li>
+                </ul>
+              </div>
+              
+              <p className="text-sm text-slate-400">
+                <strong>Note:</strong> If you do not want your face or likeness used, please inform our staff before any photos or videos are taken. We respect your privacy and will honor your request.
+              </p>
+            </div>
+          </section>
+
+          <section>
+            <h4 className="font-semibold text-purple-300 mb-2">12. WhatsApp Communications Consent</h4>
             <div className="mb-3 space-y-3">
               <p>
                 By accepting these Terms, you consent to receive communications from PLAY Barbados via WhatsApp, including but not limited to:
